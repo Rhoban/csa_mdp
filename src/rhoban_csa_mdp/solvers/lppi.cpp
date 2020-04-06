@@ -94,6 +94,8 @@ void LPPI::performRollout(Eigen::MatrixXd* states, Eigen::MatrixXd* actions, Eig
   for (int idx = last_idx_used; idx >= 0; idx--)
   {
     value = value * discount + rollout_rewards[idx];
+    // TODO: If min_rollout_length is not set, a segfault occurs here:
+    // - Investigate and eventually enforce min_rollout_length
     states->col(idx) = rollout_states[idx];
     actions->col(idx) = rollout_actions[idx];
     (*values)(idx) = value;
