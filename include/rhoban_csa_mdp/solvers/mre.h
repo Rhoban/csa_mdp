@@ -57,7 +57,9 @@ public:
   virtual void fromJson(const Json::Value& v, const std::string& dir_name) override;
 
 private:
-  /// Which is the plan frequency: '-1' -> update only when requested
+  /// Which is the plan frequency:
+  /// - '-1' -> update only when requested
+  /// - positive value -> number of samples between two updates
   int plan_period;
   /// Configuration used for the solver
   MREFPF::Config mrefpf_conf;
