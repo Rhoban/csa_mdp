@@ -42,6 +42,9 @@ public:
   std::unique_ptr<rhoban_fa::FunctionApproximator> updatePolicy(const Eigen::MatrixXd& states,
                                                                 const Eigen::MatrixXd& actions) const;
 
+  void updateMemory(const Eigen::MatrixXd& states, const Eigen::MatrixXd& actions, const Eigen::VectorXd& values,
+                    std::default_random_engine* engine);
+
   virtual void setNbThreads(int nb_threads) override;
 
   virtual std::string getClassName() const override;
@@ -71,6 +74,14 @@ private:
   /// number of increasement allowed on nb_entries (x2 each times), negative value is infinite.
   int entries_increasement;
   bool increase_last_iteration;
+  /// Ratio of samples conserved from previous update [0,1]
+  double recall_ratio;
+  /// Recall states (1 state per column)
+  Eigen::MatrixXd recall_states;
+  /// Recall actions (1 action per column)
+  Eigen::MatrixXd recall_actions;
+  /// Recall values
+  Eigen::VectorXd recall_values;
   /// The best average reward for policies encountered:
   /// - It is used to choose if we update the policy
   double best_reward;

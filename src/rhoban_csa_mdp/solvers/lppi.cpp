@@ -26,6 +26,7 @@ LPPI::LPPI()
   , max_rollout_length(-1)
   , nb_entries(-1)
   , entries_increasement(0)
+  , recall_ratio(0.0)
   , best_reward(std::numeric_limits<double>::lowest())
   , use_policy(false)
 {
@@ -116,6 +117,14 @@ void LPPI::performRollouts(Eigen::MatrixXd* states, Eigen::MatrixXd* actions, Ei
   (*states) = Eigen::MatrixXd(state_dims, nb_entries);
   (*actions) = Eigen::MatrixXd(1 + action_dims, nb_entries);
   (*values) = Eigen::VectorXd(nb_entries);
+  // If samples are remembered from previous iterations, start by including them
+  if (recall_states.cols() > 0)
+  {
+    states->block(0, 0, state_dims, recall_states.cols()) = recall_states;
+    actions->block(0, 0, 1 + action_dims, recall_actions.cols()) = recall_actions;
+    values->segment(0, recall_values.cols()) = recall_values;
+    entry_count += recall_states.cols();
+  }
   std::mutex mutex;  // Ensures only one thread modifies common properties at the same time
   // TODO: add another StochasticTask which does not depend on start_idx and end_idx eventually
   rhoban_utils::MultiCore::StochasticTask thread_task = [this, &mutex, &state_dims, &action_dims, states, actions,
@@ -252,7 +261,9 @@ void LPPI::update(std::default_random_engine* engine)
   }
 
   writeScore(best_reward);
+  updateMemory(states, actions, values, engine);
 }
+
 void LPPI::updateValues(const Eigen::MatrixXd& states, const Eigen::VectorXd& values)
 {
   Eigen::MatrixXd state_limits = problem->getLearningStateLimits();
@@ -263,6 +274,26 @@ void LPPI::updateValues(const Eigen::MatrixXd& states, const Eigen::VectorXd& va
   else
   {
     value = value_trainer->train(states, values, state_limits);
+  }
+}
+
+void LPPI::updateMemory(const Eigen::MatrixXd& states, const Eigen::MatrixXd& actions, const Eigen::VectorXd& values,
+                        std::default_random_engine* engine)
+{
+  int recall_entries = std::min(states.cols(), (long int)std::floor(recall_ratio * nb_entries));
+  if (recall_entries == 0)
+    return;
+  std::cout << "Recalling " << recall_entries << " entries" << std::endl;
+  recall_states = Eigen::MatrixXd(states.rows(), recall_entries);
+  recall_actions = Eigen::MatrixXd(actions.rows(), recall_entries);
+  recall_values = Eigen::VectorXd(recall_entries);
+  std::vector<size_t> recall_indices = rhoban_random::getKDistinctFromN(recall_entries, states.cols(), engine);
+  for (int idx = 0; idx < recall_entries; idx++)
+  {
+    size_t dataset_idx = recall_indices[idx];
+    recall_states.col(idx) = states.col(dataset_idx);
+    recall_actions.col(idx) = actions.col(dataset_idx);
+    recall_values(idx) = values(dataset_idx);
   }
 }
 
@@ -318,7 +349,12 @@ void LPPI::fromJson(const Json::Value& v, const std::string& dir_name)
   rhoban_utils::tryRead(v, "max_rollout_length", &max_rollout_length);
   rhoban_utils::tryRead(v, "nb_entries", &nb_entries);
   rhoban_utils::tryRead(v, "entries_increasement", &entries_increasement);
+  rhoban_utils::tryRead(v, "recall_ratio", &recall_ratio);
   rhoban_utils::tryRead(v, "use_policy", &use_policy);
+  if (recall_ratio < 0 || recall_ratio > 1.0)
+  {
+    throw std::logic_error("Invalid value for recall_ration: " + std::to_string(recall_ratio));
+  }
   // Update value_trainer and policy_trainer number of threads
   setNbThreads(nb_threads);
 }
