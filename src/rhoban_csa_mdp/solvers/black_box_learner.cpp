@@ -72,7 +72,7 @@ double BlackBoxLearner::evaluatePolicy(const Policy& p, int nb_evaluations, std:
         {
           visited_states_per_thread[idx].push_back(state);
         }
-        Eigen::VectorXd action = p.getAction(state, engine);
+        Eigen::VectorXd action = p.getAction(problem->getLearningState(state), engine);
         Problem::Result result = problem->getSuccessor(state, action, engine);
         double step_reward = result.reward;
         state = result.successor;

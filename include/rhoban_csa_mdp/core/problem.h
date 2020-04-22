@@ -101,6 +101,12 @@ public:
   /// Which state dimensions are used as input for learning (default is all)
   virtual std::vector<int> getLearningDimensions() const;
 
+  /// Filters an exhaustive state to use only states relevant for learning
+  Eigen::VectorXd getLearningState(const Eigen::VectorXd& exhaustive_state) const;
+
+  /// Filters an exhaustive state to use only states relevant for learning
+  Eigen::MatrixXd getLearningStateLimits() const;
+
   /// Uses an external random engine and generate successor, reward and terminal check
   virtual Result getSuccessor(const Eigen::VectorXd& state, const Eigen::VectorXd& action,
                               std::default_random_engine* engine) const = 0;
