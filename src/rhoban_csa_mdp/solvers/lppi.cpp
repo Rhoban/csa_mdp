@@ -25,6 +25,7 @@ LPPI::LPPI()
   : min_rollout_length(-1)
   , max_rollout_length(-1)
   , nb_entries(-1)
+  , entries_increasement(0)
   , best_reward(std::numeric_limits<double>::lowest())
   , use_policy(false)
 {
@@ -195,6 +196,10 @@ void LPPI::init(std::default_random_engine* engine)
   {
     throw std::runtime_error("LPPI::init: no policy trainer");
   }
+  if (entries_increasement != 0)
+  {
+    increase_last_iteration = true;
+  }
 }
 
 void LPPI::update(std::default_random_engine* engine)
@@ -231,6 +236,21 @@ void LPPI::update(std::default_random_engine* engine)
     policy_fa->save("policy_fa.bin");
     best_reward = new_reward;
   }
+  else if (entries_increasement != 0)
+  {
+    if (!increase_last_iteration)
+    {
+      nb_entries = nb_entries * 2;
+      std::cout << "double number of entries, new nb :" << nb_entries << std::endl;
+      entries_increasement--;
+      increase_last_iteration = true;
+    }
+    else
+    {
+      increase_last_iteration = false;
+    }
+  }
+
   writeScore(best_reward);
 }
 void LPPI::updateValues(const Eigen::MatrixXd& states, const Eigen::VectorXd& values)
@@ -297,6 +317,7 @@ void LPPI::fromJson(const Json::Value& v, const std::string& dir_name)
   rhoban_utils::tryRead(v, "min_rollout_length", &min_rollout_length);
   rhoban_utils::tryRead(v, "max_rollout_length", &max_rollout_length);
   rhoban_utils::tryRead(v, "nb_entries", &nb_entries);
+  rhoban_utils::tryRead(v, "entries_increasement", &entries_increasement);
   rhoban_utils::tryRead(v, "use_policy", &use_policy);
   // Update value_trainer and policy_trainer number of threads
   setNbThreads(nb_threads);
