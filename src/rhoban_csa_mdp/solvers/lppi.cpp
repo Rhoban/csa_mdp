@@ -38,12 +38,12 @@ LPPI::~LPPI()
 void LPPI::performRollout(Eigen::MatrixXd* states, Eigen::MatrixXd* actions, Eigen::VectorXd* values,
                           std::default_random_engine* engine)
 {
-  int state_dims = problem->stateDims();
+  int state_dims = problem->getLearningDimensions().size();
   int action_dims = problem->actionDims(0);
   // First, run the rollout storing visited states
   std::vector<Eigen::VectorXd> rollout_states, rollout_actions;
   std::vector<double> rollout_rewards;
-  Eigen::VectorXd state = problem->getStartingState(engine);
+  Eigen::VectorXd state = problem->getStartingState(engine);  // Exhaustive state
   bool end_with_terminal = false;
   for (int step = 0; step < max_rollout_length; step++)
   {
@@ -59,7 +59,7 @@ void LPPI::performRollout(Eigen::MatrixXd* states, Eigen::MatrixXd* actions, Eig
     }
     // Applying action, storing results and updating current state
     Problem::Result res = problem->getSuccessor(state, action, engine);
-    rollout_states.push_back(state);
+    rollout_states.push_back(problem->getLearningState(state));
     rollout_actions.push_back(action);
     rollout_rewards.push_back(res.reward);
     // Stop if we obtained a terminal status, otherwise, update current state
@@ -110,7 +110,7 @@ void LPPI::performRollout(Eigen::MatrixXd* states, Eigen::MatrixXd* actions, Eig
 void LPPI::performRollouts(Eigen::MatrixXd* states, Eigen::MatrixXd* actions, Eigen::VectorXd* values,
                            std::default_random_engine* engine)
 {
-  int state_dims = problem->stateDims();
+  int state_dims = problem->getLearningDimensions().size();
   int action_dims = problem->actionDims(0);
   int entry_count = 0;
   (*states) = Eigen::MatrixXd(state_dims, nb_entries);
@@ -255,7 +255,7 @@ void LPPI::update(std::default_random_engine* engine)
 }
 void LPPI::updateValues(const Eigen::MatrixXd& states, const Eigen::VectorXd& values)
 {
-  Eigen::MatrixXd state_limits = problem->getStateLimits();
+  Eigen::MatrixXd state_limits = problem->getLearningStateLimits();
   if (value)
   {
     value = value_trainer->train(states, values, state_limits, *value);
@@ -269,7 +269,7 @@ void LPPI::updateValues(const Eigen::MatrixXd& states, const Eigen::VectorXd& va
 std::unique_ptr<FunctionApproximator> LPPI::updatePolicy(const Eigen::MatrixXd& states,
                                                          const Eigen::MatrixXd& actions) const
 {
-  Eigen::MatrixXd state_limits = problem->getStateLimits();
+  Eigen::MatrixXd state_limits = problem->getLearningStateLimits();
   std::unique_ptr<FunctionApproximator> new_policy_fa;
   if (policy_fa)
   {

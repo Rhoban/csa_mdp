@@ -167,6 +167,29 @@ std::vector<int> Problem::getLearningDimensions() const
   return result;
 }
 
+Eigen::VectorXd Problem::getLearningState(const Eigen::VectorXd& state) const
+{
+  std::vector<int> learning_dimensions = getLearningDimensions();
+  Eigen::VectorXd learning_state(learning_dimensions.size());
+  for (size_t dim = 0; dim < learning_dimensions.size(); dim++)
+  {
+    learning_state(dim) = state(learning_dimensions[dim]);
+  }
+  return learning_state;
+}
+
+Eigen::MatrixXd Problem::getLearningStateLimits() const
+{
+  std::vector<int> learning_dimensions = getLearningDimensions();
+  Eigen::MatrixXd state_limits = getStateLimits();
+  Eigen::MatrixXd learning_limits(learning_dimensions.size(), 2);
+  for (size_t dim = 0; dim < learning_dimensions.size(); dim++)
+  {
+    learning_limits.row(dim) = state_limits.row(learning_dimensions[dim]);
+  }
+  return learning_limits;
+}
+
 double Problem::sampleRolloutReward(const Eigen::VectorXd& initial_state, const csa_mdp::Policy& policy,
                                     int max_horizon, double discount, std::default_random_engine* engine) const
 {
