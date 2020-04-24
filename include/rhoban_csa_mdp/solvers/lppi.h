@@ -88,6 +88,8 @@ private:
   /// If true, current policy is used to finish the trials, otherwise, value
   /// estimation is used to estimate remaining value
   bool use_policy;
+  /// When enabled, dump the dataset used for learning in a (potentially large) Json file.
+  bool dump_dataset;
 };
 
 }  // namespace csa_mdp

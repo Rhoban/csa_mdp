@@ -29,6 +29,7 @@ LPPI::LPPI()
   , recall_ratio(0.0)
   , best_reward(std::numeric_limits<double>::lowest())
   , use_policy(false)
+  , dump_dataset(false)
 {
 }
 
@@ -167,17 +168,19 @@ void LPPI::performRollouts(Eigen::MatrixXd* states, Eigen::MatrixXd* actions, Ei
   engines = rhoban_random::getRandomEngines(local_nb_threads, engine);
   rhoban_utils::MultiCore::runParallelStochasticTask(thread_task, local_nb_threads, &engines);
 
-  // Json Writing
-  std::cout << "Writing dataset.json" << std::endl;
-  Json::StyledWriter writer;
-  Json::Value content;
-  content["states"] = rhoban_utils::matrix2Json(*states);
-  content["actions"] = rhoban_utils::matrix2Json(*actions);
-  content["values"] = rhoban_utils::vector2Json(*values);
-  // Prepare output stream
-  // TODO: error treatment
-  std::ofstream output("dataset.json");
-  output << writer.write(content);
+  if (dump_dataset)
+  {
+    std::cout << "Writing dataset.json" << std::endl;
+    Json::StyledWriter writer;
+    Json::Value content;
+    content["states"] = rhoban_utils::matrix2Json(*states);
+    content["actions"] = rhoban_utils::matrix2Json(*actions);
+    content["values"] = rhoban_utils::vector2Json(*values);
+    // Prepare output stream
+    // TODO: error treatment
+    std::ofstream output("dataset.json");
+    output << writer.write(content);
+  }
 }
 void LPPI::init(std::default_random_engine* engine)
 {
@@ -351,6 +354,7 @@ void LPPI::fromJson(const Json::Value& v, const std::string& dir_name)
   rhoban_utils::tryRead(v, "entries_increasement", &entries_increasement);
   rhoban_utils::tryRead(v, "recall_ratio", &recall_ratio);
   rhoban_utils::tryRead(v, "use_policy", &use_policy);
+  rhoban_utils::tryRead(v, "dump_dataset", &dump_dataset);
   if (recall_ratio < 0 || recall_ratio > 1.0)
   {
     throw std::logic_error("Invalid value for recall_ration: " + std::to_string(recall_ratio));
