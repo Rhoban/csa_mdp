@@ -51,14 +51,7 @@ void LPPI::performRollout(Eigen::MatrixXd* states, Eigen::MatrixXd* actions, Eig
   {
     // Local optimization of the action
     Eigen::VectorXd action;
-    if (use_policy)
-    {
-      action = planner.planNextAction(*problem, state, *policy, engine);
-    }
-    else
-    {
-      action = planner.planNextAction(*problem, state, *value, engine);
-    }
+    action = planner.planNextAction(*problem, state, *policy, *value, engine);
     // Applying action, storing results and updating current state
     Problem::Result res = problem->getSuccessor(state, action, engine);
     rollout_states.push_back(problem->getLearningState(state));
