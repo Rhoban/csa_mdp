@@ -44,7 +44,7 @@ Eigen::VectorXd OpenLoopPlanner::getInitialGuess(const Problem& p, const Eigen::
   Eigen::VectorXd state = initial_state;
   for (int step = 0; step < look_ahead; step++)
   {
-    Eigen::VectorXd action = policy.getAction(initial_state, engine);
+    Eigen::VectorXd action = policy.getAction(p.getLearningState(state), engine);
     Problem::Result result = p.getSuccessor(state, action, engine);
     state = result.successor;
     initial_guess.segment(step * action_dims, action_dims) = action.segment(1, action_dims);
