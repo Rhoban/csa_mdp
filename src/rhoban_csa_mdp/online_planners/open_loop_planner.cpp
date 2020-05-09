@@ -111,7 +111,7 @@ Eigen::VectorXd OpenLoopPlanner::planNextAction(const Problem& p, const Eigen::V
                 p.sampleRolloutReward(final_state, policy, trial_length - look_ahead, this->discount, engine);
             break;
           case ValueBased:
-            future_reward = value_function.predict(final_state, 0);
+            future_reward = value_function.predict(p.getLearningState(final_state), 0);
             break;
           default:
             throw std::logic_error(DEBUG_INFO + "Invalid enum");
