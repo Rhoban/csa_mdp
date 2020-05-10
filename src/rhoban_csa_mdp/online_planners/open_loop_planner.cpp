@@ -24,6 +24,7 @@ void OpenLoopPlanner::checkConsistency(const Problem& p) const
 
 void OpenLoopPlanner::prepareOptimizer(const Problem& p)
 {
+  checkConsistency(p);
   Eigen::MatrixXd action_limits = p.getActionLimits(0);
   int action_dims = action_limits.rows();
   Eigen::MatrixXd optimizer_limits(action_dims * look_ahead, 2);
@@ -83,10 +84,8 @@ double OpenLoopPlanner::sampleLookAheadReward(const Problem& p, const Eigen::Vec
 
 Eigen::VectorXd OpenLoopPlanner::planNextAction(const Problem& p, const Eigen::VectorXd& state, const Policy& policy,
                                                 const rhoban_fa::FunctionApproximator& value_function,
-                                                std::default_random_engine* engine)
+                                                std::default_random_engine* engine) const
 {
-  checkConsistency(p);
-  prepareOptimizer(p);
   // Building reward function
   rhoban_bbo::Optimizer::RewardFunc reward_function = [&p, &policy, &value_function, this,
                                                        state](const Eigen::VectorXd& next_actions,

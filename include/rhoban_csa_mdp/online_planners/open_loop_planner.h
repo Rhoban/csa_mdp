@@ -33,9 +33,11 @@ public:
 
   /// Optimize the next action for the given problem 'p' starting at 'state'
   /// according to inner parameters and provided policy and value_function
+  ///
+  /// It is mandatory to have called 'prepareOptimizer' with the same problem before
   Eigen::VectorXd planNextAction(const Problem& p, const Eigen::VectorXd& state, const Policy& policy,
                                  const rhoban_fa::FunctionApproximator& value_function,
-                                 std::default_random_engine* engine);
+                                 std::default_random_engine* engine) const;
 
   virtual std::string getClassName() const override;
   virtual Json::Value toJson() const override;

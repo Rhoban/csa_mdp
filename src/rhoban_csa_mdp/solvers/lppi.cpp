@@ -352,6 +352,7 @@ void LPPI::fromJson(const Json::Value& v, const std::string& dir_name)
   {
     throw std::logic_error("Invalid value for recall_ration: " + std::to_string(recall_ratio));
   }
+  planner.prepareOptimizer(*problem);
   // Update value_trainer and policy_trainer number of threads
   setNbThreads(nb_threads);
 }

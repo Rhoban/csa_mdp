@@ -14,6 +14,8 @@ namespace csa_mdp
 /// long-term behaviors.
 ///
 /// TODO: accept a multiple step optimization
+///
+/// Note: This class is now a specific instance of a PlannerBasedPolicy
 class MonteCarloPolicy : public Policy
 {
 public:

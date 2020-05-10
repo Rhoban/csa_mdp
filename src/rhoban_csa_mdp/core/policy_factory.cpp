@@ -5,6 +5,7 @@
 #include "rhoban_csa_mdp/core/monte_carlo_policy.h"
 #include "rhoban_csa_mdp/core/opportunist_policy.h"
 #include "rhoban_csa_mdp/core/random_policy.h"
+#include "rhoban_csa_mdp/online_planners/planner_based_policy.h"
 
 namespace csa_mdp
 {
@@ -17,6 +18,7 @@ PolicyFactory::PolicyFactory()
   registerBuilder("MonteCarloPolicy", []() { return std::unique_ptr<Policy>(new MonteCarloPolicy); });
   registerBuilder("OpportunistPolicy", []() { return std::unique_ptr<Policy>(new OpportunistPolicy); });
   registerBuilder("RandomPolicy", []() { return std::unique_ptr<Policy>(new RandomPolicy); });
+  registerBuilder("PlannerBasedPolicy", []() { return std::unique_ptr<Policy>(new PlannerBasedPolicy); });
   for (const auto& entry : extra_builders)
   {
     registerBuilder(entry.first, entry.second);
