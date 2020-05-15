@@ -277,7 +277,7 @@ void PML2::tryRefine(int mutation_id, int action_id, std::default_random_engine*
   // Get reference to the appropriate mutation
   MutationCandidate* mutation = &(mutation_candidates[mutation_id]);
   // Initial states
-  std::vector<Eigen::VectorXd> initial_states = getInitialStates(*mutation, engine);
+  std::vector<Eigen::VectorXd> initial_states = getInitialStates(*mutation, true, engine);
   std::cout << "-> Nb Initial states: " << initial_states.size() << std::endl;
   // Get space, and space center
   int input_dim = problem->stateDims();
@@ -321,6 +321,7 @@ void PML2::tryRefine(int mutation_id, int action_id, std::default_random_engine*
   std::unique_ptr<FATree> refined_tree;
   refined_tree = policy_tree->copyAndReplaceLeaf(initial_states[0], std::move(refined_approximator));
   // Submit the new tree
+  initial_states = getInitialStates(*mutation, false, engine);
   submitTree(std::move(refined_tree), initial_states, engine);
   // Update mutation properties:
   mutation->last_training = iterations;
@@ -329,19 +330,20 @@ void PML2::tryRefine(int mutation_id, int action_id, std::default_random_engine*
 void PML2::applyBestSplit(int mutation_id, std::default_random_engine* engine)
 {
   const MutationCandidate& mutation = mutation_candidates[mutation_id];
-  std::vector<Eigen::VectorXd> initial_states = getInitialStates(mutation, engine);
-  Eigen::VectorXd samples_center = computeStatesCenter(initial_states);
-  const FunctionApproximator& leaf_fa = policy_tree->getLeafApproximator(initial_states[0]);
+  std::vector<Eigen::VectorXd> training_states = getInitialStates(mutation, true, engine);
+  std::vector<Eigen::VectorXd> validation_states = getInitialStates(mutation, false, engine);
+  Eigen::VectorXd samples_center = computeStatesCenter(training_states);
+  const FunctionApproximator& leaf_fa = policy_tree->getLeafApproximator(training_states[0]);
   // Debug message
   std::cout << "-> Applying a split mutation " << std::endl;
-  std::cout << "-> Nb initial states: " << initial_states.size() << std::endl;
+  std::cout << "-> Nb training states: " << training_states.size() << std::endl;
   // Testing all dimensions as split and keeping the best one
   double best_score = std::numeric_limits<double>::lowest();
   std::unique_ptr<FATree> best_tree;
   for (int dim = 0; dim < problem->stateDims(); dim++)
   {
     double score;
-    std::unique_ptr<FATree> current_tree = trySplit(dim, initial_states, engine, &score);
+    std::unique_ptr<FATree> current_tree = trySplit(dim, training_states, validation_states, engine, &score);
     if (score > best_score)
     {
       best_score = score;
@@ -354,11 +356,11 @@ void PML2::applyBestSplit(int mutation_id, std::default_random_engine* engine)
     throw std::logic_error("PML2::splitMutation: Failed to find a best tree");
   }
   // Getting ref to the chosen Split and backing it up in case it is needed after
-  const Split& split = best_tree->getPreLeafApproximator(initial_states[0]).getSplit();
+  const Split& split = best_tree->getPreLeafApproximator(training_states[0]).getSplit();
   std::unique_ptr<Split> split_copy = split.clone();
   // Evaluating policy with respect to previous solution
   int nb_new_nodes = split.getNbElements();
-  bool replaced_policy = submitTree(std::move(best_tree), initial_states, engine);
+  bool replaced_policy = submitTree(std::move(best_tree), training_states, engine);
   // If the new approximation does not replace current one, reuse current FA for children
   if (!replaced_policy)
   {
@@ -370,7 +372,7 @@ void PML2::applyBestSplit(int mutation_id, std::default_random_engine* engine)
     }
     std::unique_ptr<FATree> new_leaf_fa(new FATree(std::move(split_copy), approximators));
     // Replace it in policy tree and update policy
-    policy_tree->replaceApproximator(initial_states[0], std::move(new_leaf_fa));
+    policy_tree->replaceApproximator(training_states[0], std::move(new_leaf_fa));
     policy = buildPolicy(*policy_tree);
   }
   postSplitUpdate(mutation_id, nb_new_nodes);
@@ -379,19 +381,21 @@ void PML2::applyBestSplit(int mutation_id, std::default_random_engine* engine)
 void PML2::applyBestLinearSplit(int mutation_id, std::default_random_engine* engine)
 {
   const MutationCandidate& mutation = mutation_candidates[mutation_id];
-  std::vector<Eigen::VectorXd> initial_states = getInitialStates(mutation, engine);
-  Eigen::VectorXd samples_center = computeStatesCenter(initial_states);
-  const FunctionApproximator& leaf_fa = policy_tree->getLeafApproximator(initial_states[0]);
+  std::vector<Eigen::VectorXd> training_states = getInitialStates(mutation, true, engine);
+  std::vector<Eigen::VectorXd> validation_states = getInitialStates(mutation, false, engine);
+  Eigen::VectorXd samples_center = computeStatesCenter(training_states);
+  const FunctionApproximator& leaf_fa = policy_tree->getLeafApproximator(training_states[0]);
   // Debug message
   std::cout << "-> Applying a linear split mutation " << std::endl;
-  std::cout << "-> Nb initial states: " << initial_states.size() << std::endl;
+  std::cout << "-> Nb training states: " << training_states.size() << std::endl;
   // Testing all actions as split and keeping the best one
   double best_score = std::numeric_limits<double>::lowest();
   std::unique_ptr<FATree> best_tree;
   for (int action_id = 0; action_id < problem->getNbActions(); action_id++)
   {
     double score;
-    std::unique_ptr<FATree> current_tree = tryLinearSplit(action_id, initial_states, engine, &score);
+    std::unique_ptr<FATree> current_tree =
+        tryLinearSplit(action_id, training_states, validation_states, engine, &score);
     if (score > best_score)
     {
       best_score = score;
@@ -405,11 +409,11 @@ void PML2::applyBestLinearSplit(int mutation_id, std::default_random_engine* eng
   }
   // TODO: this part is duplicated from applyBestOrthogonalSplit code shall be shared
   // Getting ref to the chosen Split and backing it up in case it is needed after
-  const Split& split = best_tree->getPreLeafApproximator(initial_states[0]).getSplit();
+  const Split& split = best_tree->getPreLeafApproximator(training_states[0]).getSplit();
   std::unique_ptr<Split> split_copy = split.clone();
   // Evaluating policy with respect to previous solution
   int nb_new_nodes = split.getNbElements();
-  bool replaced_policy = submitTree(std::move(best_tree), initial_states, engine);
+  bool replaced_policy = submitTree(std::move(best_tree), training_states, engine);
   // If the new approximation does not replace current one, reuse current FA for children
   if (!replaced_policy)
   {
@@ -421,21 +425,22 @@ void PML2::applyBestLinearSplit(int mutation_id, std::default_random_engine* eng
     }
     std::unique_ptr<FATree> new_leaf_fa(new FATree(std::move(split_copy), approximators));
     // Replace it in policy tree and update policy
-    policy_tree->replaceApproximator(initial_states[0], std::move(new_leaf_fa));
+    policy_tree->replaceApproximator(training_states[0], std::move(new_leaf_fa));
     policy = buildPolicy(*policy_tree);
   }
   postSplitUpdate(mutation_id, nb_new_nodes);
 }
 
-std::unique_ptr<rhoban_fa::FATree> PML2::trySplit(int split_dim, const std::vector<Eigen::VectorXd>& initial_states,
+std::unique_ptr<rhoban_fa::FATree> PML2::trySplit(int split_dim, const std::vector<Eigen::VectorXd>& training_states,
+                                                  const std::vector<Eigen::VectorXd>& validation_states,
                                                   std::default_random_engine* engine, double* score)
 {
   // Debug message
   std::cout << "\tTesting split along " << split_dim << std::endl;
   // Getting center of samples
-  Eigen::MatrixXd samples_center = computeStatesCenter(initial_states);
+  Eigen::MatrixXd samples_center = computeStatesCenter(training_states);
   // Getting current action_id
-  int action_id = (int)policy_tree->predict(initial_states[0])(0);
+  int action_id = (int)policy_tree->predict(training_states[0])(0);
   Eigen::MatrixXd action_limits = problem->getActionLimits(action_id);
   int action_dims = problem->actionDims(action_id);
   // Function to train has the following parameters:
@@ -461,24 +466,16 @@ std::unique_ptr<rhoban_fa::FATree> PML2::trySplit(int split_dim, const std::vect
     approximators.push_back(std::move(action1));
     return std::unique_ptr<FATree>(new FATree(std::move(split), approximators));
   };
-  // Defining evaluation function
-  rhoban_bbo::Optimizer::RewardFunc reward_func = [this, split_dim, action_dims, parameters_to_approximator,
-                                                   &initial_states](const Eigen::VectorXd& parameters,
-                                                                    std::default_random_engine* engine) {
-    std::unique_ptr<FATree> new_approximator;
-    new_approximator = parameters_to_approximator(parameters);
-    // Replace approximator
-    std::unique_ptr<FATree> new_tree;
-    new_tree = policy_tree->copyAndReplaceLeaf(initial_states[0], std::move(new_approximator));
-    // build policy and evaluate
-    // TODO: avoid this second copy of the tree which is not necessary
-    std::unique_ptr<Policy> policy = buildPolicy(*new_tree);
-    return evaluation(*policy, initial_states, engine);
+  // Defining evaluation and reward function
+  rhoban_bbo::Optimizer::RewardFunc reward_func = [this, &training_states,
+                                                   parameters_to_approximator](const Eigen::VectorXd& parameters,
+                                                                               std::default_random_engine* engine) {
+    return evalMutation(parameters, training_states, parameters_to_approximator, engine);
   };
   // Computing boundaries for split
   double dim_min = std::numeric_limits<double>::max();
   double dim_max = std::numeric_limits<double>::lowest();
-  for (const Eigen::VectorXd& state : initial_states)
+  for (const Eigen::VectorXd& state : training_states)
   {
     double v = state(split_dim);
     if (v < dim_min)
@@ -496,21 +493,21 @@ std::unique_ptr<rhoban_fa::FATree> PML2::trySplit(int split_dim, const std::vect
   parameters_space(0, 1) = split_max;
   parameters_space.block(1, 0, action_dims, 2) = action_limits;
   parameters_space.block(1 + action_dims, 0, action_dims, 2) = action_limits;
-  // Computing initial parameters using current approximator
+  // Computing training parameters using current approximator
   double split_default_val = (split_min + split_max) / 2;
-  std::unique_ptr<Split> initial_split(new OrthogonalSplit(split_dim, split_default_val));
-  Eigen::VectorXd initial_parameters(1 + 2 * action_dims);
+  std::unique_ptr<Split> training_split(new OrthogonalSplit(split_dim, split_default_val));
+  Eigen::VectorXd training_parameters(1 + 2 * action_dims);
   Eigen::VectorXd default_action = policy_tree->predict(samples_center);
-  initial_parameters(0) = split_default_val;
-  for (int leaf_id = 0; leaf_id < initial_split->getNbElements(); leaf_id++)
+  training_parameters(0) = split_default_val;
+  for (int leaf_id = 0; leaf_id < training_split->getNbElements(); leaf_id++)
   {
     int start = 1 + action_dims * leaf_id;
-    initial_parameters.segment(start, action_dims) = default_action.segment(1, action_dims);
+    training_parameters.segment(start, action_dims) = default_action.segment(1, action_dims);
   }
   // Optimize
-  Eigen::VectorXd optimized_parameters = optimize(reward_func, parameters_space, initial_parameters, engine);
-  // TODO: Evalually, evaluate with a larger set here
-  *score = reward_func(optimized_parameters, engine);
+  Eigen::VectorXd optimized_parameters = optimize(reward_func, parameters_space, training_parameters, engine);
+  // Evaluating split with a larger set
+  *score = evalMutation(optimized_parameters, validation_states, parameters_to_approximator, engine);
   // Debug
   std::cout << "\t->Optimized params: " << optimized_parameters.transpose() << std::endl;
   std::cout << "\t->Avg reward: " << *score << std::endl;
@@ -518,7 +515,7 @@ std::unique_ptr<rhoban_fa::FATree> PML2::trySplit(int split_dim, const std::vect
   std::unique_ptr<FunctionApproximator> optimized_approximator;
   optimized_approximator = parameters_to_approximator(optimized_parameters);
   std::unique_ptr<FATree> splitted_tree;
-  splitted_tree = policy_tree->copyAndReplaceLeaf(initial_states[0], std::move(optimized_approximator));
+  splitted_tree = policy_tree->copyAndReplaceLeaf(training_states[0], std::move(optimized_approximator));
   // return optimized approximator
   return std::move(splitted_tree);
 }
@@ -531,7 +528,8 @@ std::unique_ptr<rhoban_fa::FATree> PML2::trySplit(int split_dim, const std::vect
 /// D+1 to (D+1)(A+1)  : action coefficients (cf getParametersSpace) ((D+1)*A coeffs)
 /// with: D input dimension and A action space dimension
 std::unique_ptr<rhoban_fa::FATree> PML2::tryLinearSplit(int action_id,
-                                                        const std::vector<Eigen::VectorXd>& initial_states,
+                                                        const std::vector<Eigen::VectorXd>& training_states,
+                                                        const std::vector<Eigen::VectorXd>& validation_states,
                                                         std::default_random_engine* engine, double* score)
 {
   // Debug message
@@ -556,9 +554,9 @@ std::unique_ptr<rhoban_fa::FATree> PML2::tryLinearSplit(int action_id,
   initial_parameters.segment(D + 1, (D + 1) * A) =
       (parameters_space.block(D + 1, 0, (D + 1) * A, 1) + parameters_space.block(D + 1, 1, (D + 1) * A, 1)) / 2;
   // Getting mutation properties
-  Eigen::VectorXd samples_center = computeStatesCenter(initial_states);
-  Eigen::VectorXd samples_dev = computeStatesDeviation(initial_states);
-  const FunctionApproximator& leaf_fa = policy_tree->getLeafApproximator(initial_states[0]);
+  Eigen::VectorXd samples_center = computeStatesCenter(training_states);
+  Eigen::VectorXd samples_dev = computeStatesDeviation(training_states);
+  const FunctionApproximator& leaf_fa = policy_tree->getLeafApproximator(training_states[0]);
   auto parameters_to_approximator = [action_id, A, D, &samples_center, &samples_dev,
                                      &leaf_fa](const Eigen::VectorXd& parameters) {
     // Importing values from parameters
@@ -586,22 +584,14 @@ std::unique_ptr<rhoban_fa::FATree> PML2::tryLinearSplit(int action_id,
     return std::unique_ptr<FATree>(new FATree(std::move(split), approximators));
   };
   // Defining evaluation function
-  rhoban_bbo::Optimizer::RewardFunc reward_func = [this, samples_center, parameters_to_approximator,
-                                                   &initial_states](const Eigen::VectorXd& parameters,
-                                                                    std::default_random_engine* engine) {
-    std::unique_ptr<FATree> new_approximator;
-    new_approximator = parameters_to_approximator(parameters);
-    // Replace approximator
-    std::unique_ptr<FATree> new_tree;
-    new_tree = policy_tree->copyAndReplaceLeaf(initial_states[0], std::move(new_approximator));
-    // build policy and evaluate
-    // TODO: avoid this second copy of the tree which is not necessary
-    std::unique_ptr<Policy> policy = buildPolicy(*new_tree);
-    return evaluation(*policy, initial_states, engine);
+  rhoban_bbo::Optimizer::RewardFunc reward_func = [this, parameters_to_approximator,
+                                                   &training_states](const Eigen::VectorXd& parameters,
+                                                                     std::default_random_engine* engine) {
+    return evalMutation(parameters, training_states, parameters_to_approximator, engine);
   };
   Eigen::VectorXd optimized_parameters = optimize(reward_func, parameters_space, initial_parameters, engine);
-  // TODO: Evaluate with a larger set
-  *score = reward_func(optimized_parameters, engine);
+  // Evaluating data with a larger set
+  *score = evalMutation(optimized_parameters, validation_states, parameters_to_approximator, engine);
   // Debug
   std::cout << "\t->Optimized params: " << optimized_parameters.transpose() << std::endl;
   std::cout << "\t->Avg reward: " << *score << std::endl;
@@ -609,7 +599,7 @@ std::unique_ptr<rhoban_fa::FATree> PML2::tryLinearSplit(int action_id,
   std::unique_ptr<FunctionApproximator> optimized_approximator;
   optimized_approximator = parameters_to_approximator(optimized_parameters);
   std::unique_ptr<FATree> splitted_tree;
-  splitted_tree = policy_tree->copyAndReplaceLeaf(initial_states[0], std::move(optimized_approximator));
+  splitted_tree = policy_tree->copyAndReplaceLeaf(training_states[0], std::move(optimized_approximator));
   return std::move(splitted_tree);
 }
 
@@ -665,9 +655,12 @@ std::unique_ptr<Policy> PML2::buildPolicy(const FATree& tree)
   return std::move(result);
 }
 
-std::vector<Eigen::VectorXd> PML2::getInitialStates(const MutationCandidate& mc, std::default_random_engine* engine)
+std::vector<Eigen::VectorXd> PML2::getInitialStates(const MutationCandidate& mc, bool training,
+                                                    std::default_random_engine* engine)
 {
   size_t nb_evaluations_allowed = getTrainingEvaluations();
+  if (!training)
+    nb_evaluations_allowed = getNbEvaluationTrials();
   // If we are lacking samples return them all
   if (nb_evaluations_allowed >= mc.visited_states.size())
   {
@@ -705,10 +698,12 @@ bool PML2::submitTree(std::unique_ptr<rhoban_fa::FATree> new_tree, const std::ve
   // Replace current if improvement has been seen both locally and globally
   if (new_local_reward > old_local_reward && new_global_reward > old_global_reward)
   {
+    std::cout << "\t-> replacing tree" << std::endl;
     policy_tree = std::move(new_tree);
     policy = std::move(new_policy);
     return true;
   }
+  std::cout << "\t-> not replacing tree" << std::endl;
   return false;
 }
 
@@ -734,6 +729,22 @@ void PML2::postSplitUpdate(int node_id, int nb_nodes_added)
   mutation_candidates.erase(node_id);
   // Updating policy tree nodes count
   policy_tree->updateNodesCount();
+}
+
+double
+PML2::evalMutation(const Eigen::VectorXd& parameters, const std::vector<Eigen::VectorXd>& initial_states,
+                   std::function<std::unique_ptr<rhoban_fa::FATree>(const Eigen::VectorXd&)> parameters_to_approximator,
+                   std::default_random_engine* engine)
+{
+  std::unique_ptr<FATree> new_approximator;
+  new_approximator = parameters_to_approximator(parameters);
+  // Replace approximator
+  std::unique_ptr<FATree> new_tree;
+  new_tree = policy_tree->copyAndReplaceLeaf(initial_states[0], std::move(new_approximator));
+  // build policy and evaluate
+  // TODO: avoid this second copy of the tree which is not necessary
+  std::unique_ptr<Policy> policy = buildPolicy(*new_tree);
+  return evaluation(*policy, initial_states, engine);
 }
 
 }  // namespace csa_mdp

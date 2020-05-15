@@ -93,12 +93,14 @@ public:
 
   /// Try to split along 'split_dim' at the given mutation.
   /// Return the FATree built to replace current approximator and update score
-  std::unique_ptr<rhoban_fa::FATree> trySplit(int split_dim, const std::vector<Eigen::VectorXd>& initial_states,
+  std::unique_ptr<rhoban_fa::FATree> trySplit(int split_dim, const std::vector<Eigen::VectorXd>& training_states,
+                                              const std::vector<Eigen::VectorXd>& validation_states,
                                               std::default_random_engine* engine, double* score);
 
   /// Try to split using a linear split and a new action 'action_id' at the given mutation.
   /// Return the FATree built to replace current approximator and update score
-  std::unique_ptr<rhoban_fa::FATree> tryLinearSplit(int action_id, const std::vector<Eigen::VectorXd>& initial_states,
+  std::unique_ptr<rhoban_fa::FATree> tryLinearSplit(int action_id, const std::vector<Eigen::VectorXd>& training_states,
+                                                    const std::vector<Eigen::VectorXd>& validation_states,
                                                     std::default_random_engine* engine, double* score);
 
   /// Return the parameters space for training a linear model given the
@@ -123,11 +125,12 @@ public:
   /// limits
   std::unique_ptr<Policy> buildPolicy(const rhoban_fa::FATree& tree);
 
-  /// If 'use_visited_states':
-  /// - use states from mutation
+  /// If 'training':
+  /// - returns a maximum of 'trainingEvaluations' states
   /// Else
-  /// - Generate random states
-  std::vector<Eigen::VectorXd> getInitialStates(const MutationCandidate& mc, std::default_random_engine* engine);
+  /// - returns a maximum of nb evaluation trials
+  std::vector<Eigen::VectorXd> getInitialStates(const MutationCandidate& mc, bool training,
+                                                std::default_random_engine* engine);
 
   bool isMutationAllowed(const MutationCandidate& mc) const;
 
@@ -145,6 +148,11 @@ public:
   void postSplitUpdate(int node_id, int nb_nodes_added);
 
 protected:
+  double
+  evalMutation(const Eigen::VectorXd& parameters, const std::vector<Eigen::VectorXd>& initial_states,
+               std::function<std::unique_ptr<rhoban_fa::FATree>(const Eigen::VectorXd&)> parameters_to_approximator,
+               std::default_random_engine* engine);
+
   /// The list of mutations available
   std::map<int, MutationCandidate> mutation_candidates;
 
