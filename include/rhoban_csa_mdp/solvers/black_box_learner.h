@@ -37,6 +37,9 @@ public:
   /// Perform a single step of update of an iterative learner
   virtual void update(std::default_random_engine* engine) = 0;
 
+  /// Evaluate the performance of current policy
+  double evaluate(std::default_random_engine* engine);
+
   /// Use nb_evaluation_trials evaluations
   virtual double evaluatePolicy(const Policy& p, std::default_random_engine* engine) const;
 
@@ -54,6 +57,13 @@ public:
   /// Evaluate the policy for a set of given initial states
   double evaluation(const Policy& p, const std::vector<Eigen::VectorXd>& initial_states,
                     std::default_random_engine* engine) const;
+
+  /// Run a learning episode starting with the given initial state and returns the cumulated reward
+  /// If episode is provided, the details are stored in it
+  double runEpisode(const Eigen::VectorXd& initial_state, std::default_random_engine* engine,
+                    Problem::Episode* episode = nullptr) const;
+
+  Eigen::VectorXd getAction(const Eigen::VectorXd& state, std::default_random_engine* engine) const;
 
   /// Set the maximal number of threads allowed
   virtual void setNbThreads(int nb_threads);
@@ -73,9 +83,15 @@ public:
   /// Dump the score at current iteration
   void writeScore(double score);
 
+  void setTask(const Eigen::VectorXd& task);
+  Eigen::VectorXd getAutomatedTask(double difficulty) const;
+
 protected:
   /// The problem to solve
-  std::shared_ptr<const BlackBoxProblem> problem;
+  std::shared_ptr<BlackBoxProblem> problem;
+
+  /// The current policy
+  std::unique_ptr<Policy> policy;
 
   /// The number of threads allowed for the learner
   int nb_threads;

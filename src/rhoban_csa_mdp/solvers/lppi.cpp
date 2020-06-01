@@ -115,8 +115,10 @@ void LPPI::performRollouts(Eigen::MatrixXd* states, Eigen::MatrixXd* actions, Ei
   if (recall_states.cols() > 0)
   {
     states->block(0, 0, state_dims, recall_states.cols()) = recall_states;
+    std::cout << recall_actions.transpose() << std::endl;
     actions->block(0, 0, 1 + action_dims, recall_actions.cols()) = recall_actions;
-    values->segment(0, recall_values.cols()) = recall_values;
+    std::cout << recall_values.transpose() << std::endl;
+    values->segment(0, recall_values.rows()) = recall_values;
     entry_count += recall_states.cols();
   }
   std::mutex mutex;  // Ensures only one thread modifies common properties at the same time
@@ -205,6 +207,7 @@ void LPPI::init(std::default_random_engine* engine)
   {
     increase_last_iteration = true;
   }
+  best_reward = std::numeric_limits<double>::lowest();
 }
 
 void LPPI::update(std::default_random_engine* engine)
@@ -213,6 +216,7 @@ void LPPI::update(std::default_random_engine* engine)
   Eigen::MatrixXd states, actions;
   Eigen::VectorXd values;
   TimeStamp start = TimeStamp::now();
+  std::cout << "performing rollouts" << std::endl;
   performRollouts(&states, &actions, &values, engine);
   TimeStamp mid1 = TimeStamp::now();
   writeTime("performRollouts", diffSec(start, mid1));

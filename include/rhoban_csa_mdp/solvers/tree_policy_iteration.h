@@ -29,9 +29,6 @@ protected:
   /// Best expected score reached by a policy at the moment
   double best_score;
 
-  /// Current approximation of the policy function
-  std::unique_ptr<Policy> policy;
-
   /// Current approximation of the value function
   std::unique_ptr<rhoban_fa::FunctionApproximator> value;
 

@@ -1,5 +1,7 @@
 #include "rhoban_csa_mdp/core/problem.h"
 
+#include <rhoban_utils/util.h>
+
 #include <chrono>
 
 namespace csa_mdp
@@ -74,6 +76,12 @@ void Problem::setActionLimits(const std::vector<Eigen::MatrixXd>& new_limits)
   resetActionsNames();
 }
 
+void Problem::setTaskLimits(const Eigen::MatrixXd& new_limits)
+{
+  task_limits = new_limits;
+  resetTaskNames();
+}
+
 void Problem::resetStateNames()
 {
   std::vector<std::string> names;
@@ -103,6 +111,19 @@ void Problem::resetActionsNames()
     names.push_back(action_names);
   }
   setActionsNames(names);
+}
+
+void Problem::resetTaskNames()
+{
+  std::vector<std::string> names;
+  std::string prefix = "task_";
+  for (int i = 0; i < task_limits.rows(); i++)
+  {
+    std::ostringstream oss;
+    oss << prefix << i;
+    names.push_back(oss.str());
+  }
+  setTaskNames(names);
 }
 
 void Problem::setStateNames(const std::vector<std::string>& names)
@@ -140,6 +161,18 @@ void Problem::setActionNames(int action_id, const std::vector<std::string>& name
   actions_names[action_id] = names;
 }
 
+void Problem::setTaskNames(const std::vector<std::string>& names)
+{
+  if ((int)names.size() != task_limits.rows())
+  {
+    std::ostringstream oss;
+    oss << "Problem::setTaskNames: names.size() != task_limits.rows(), " << names.size()
+        << " != " << task_limits.rows();
+    throw std::runtime_error(oss.str());
+  }
+  task_names = names;
+}
+
 const std::vector<std::string>& Problem::getStateNames() const
 {
   return state_names;
@@ -154,6 +187,11 @@ const std::vector<std::string> Problem::getActionNames(int action_id) const
 {
   checkActionId(action_id);
   return actions_names[action_id];
+}
+
+const std::vector<std::string>& Problem::getTaskNames() const
+{
+  return task_names;
 }
 
 std::vector<int> Problem::getLearningDimensions() const
@@ -188,6 +226,25 @@ Eigen::MatrixXd Problem::getLearningStateLimits() const
     learning_limits.row(dim) = state_limits.row(learning_dimensions[dim]);
   }
   return learning_limits;
+}
+
+const Eigen::MatrixXd& Problem::getTaskLimits() const
+{
+  return task_limits;
+}
+
+void Problem::setTask(const Eigen::VectorXd& task)
+{
+  if (task.rows() != task_limits.rows())
+    throw std::runtime_error(DEBUG_INFO + " invalid dimension for task " + std::to_string(task.rows()) +
+                             "while expecting " + std::to_string(task_limits.rows()));
+  active_task = task;
+}
+
+Eigen::VectorXd Problem::getAutomatedTask(double difficulty) const
+{
+  (void)difficulty;
+  throw std::logic_error(DEBUG_INFO + "Not implemented");
 }
 
 double Problem::sampleRolloutReward(const Eigen::VectorXd& initial_state, const csa_mdp::Policy& policy,

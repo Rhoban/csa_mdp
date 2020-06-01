@@ -58,8 +58,6 @@ private:
   std::unique_ptr<rhoban_fa::FunctionApproximator> value;
   /// A forest describing the value function trainer
   std::unique_ptr<rhoban_fa::Trainer> value_trainer;
-  /// The current policy
-  std::unique_ptr<Policy> policy;
   /// The function approximator used as a basis for the current policy
   std::unique_ptr<rhoban_fa::FunctionApproximator> policy_fa;
   /// A forest describing policy trainer

@@ -137,7 +137,7 @@ Eigen::VectorXd OpenLoopPlanner::planNextAction(const Problem& p, const Eigen::V
   int action_dims = p.actionDims(0);
   Eigen::VectorXd prefixed_action(1 + action_dims);
   prefixed_action(0) = 0;
-  prefixed_action.segment(1, action_dims) = next_actions;
+  prefixed_action.segment(1, action_dims) = next_actions.segment(0, action_dims);
   return prefixed_action;
 }
 

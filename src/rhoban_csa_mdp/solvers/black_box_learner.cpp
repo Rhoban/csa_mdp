@@ -42,6 +42,11 @@ void BlackBoxLearner::run(std::default_random_engine* engine)
     // Stop if time has elapsed
     elapsed = diffSec(learning_start, rhoban_utils::TimeStamp::now());
   }
+  std::cout << "Ending after " << elapsed << " time" << std::endl;
+}
+double BlackBoxLearner::evaluate(std::default_random_engine* engine)
+{
+  return evaluatePolicy(*policy, engine);
 }
 
 double BlackBoxLearner::evaluatePolicy(const Policy& p, std::default_random_engine* engine) const
@@ -161,17 +166,7 @@ double BlackBoxLearner::evaluation(const Policy& p, const std::vector<Eigen::Vec
         for (int idx = start_idx; idx < end_idx; idx++)
         {
           Eigen::VectorXd state = initial_states[idx];
-          double gain = 1.0;
-          for (int step = 0; step < trial_length; step++)
-          {
-            Eigen::VectorXd action = p.getAction(state, engine);
-            Problem::Result result = problem->getSuccessor(state, action, engine);
-            state = result.successor;
-            rewards(idx) += gain * result.reward;
-            gain = gain * discount;
-            if (result.terminal)
-              break;
-          }
+          rewards(idx) = runEpisode(initial_states[idx], engine);
         }
       };
   // Preparing random_engines
@@ -181,6 +176,37 @@ double BlackBoxLearner::evaluation(const Policy& p, const std::vector<Eigen::Vec
   rhoban_utils::MultiCore::runParallelStochasticTask(task, nb_evaluations, &engines);
   // Result
   return rewards.mean();
+}
+
+double BlackBoxLearner::runEpisode(const Eigen::VectorXd& initial_state, std::default_random_engine* engine,
+                                   Problem::Episode* episode) const
+{
+  double gain = 1.0;
+  double reward = 0;
+  if (episode)
+  {
+    episode->clear();
+    episode->states.push_back(initial_state);
+  }
+  Eigen::VectorXd state = initial_state;
+  for (int step = 0; step < trial_length; step++)
+  {
+    Eigen::VectorXd action = getAction(state, engine);
+    Problem::Result result = problem->getSuccessor(state, action, engine);
+    state = result.successor;
+    reward += gain * result.reward;
+    gain = gain * discount;
+    if (episode)
+      episode->feed(action, result);
+    if (result.terminal)
+      break;
+  }
+  return reward;
+}
+
+Eigen::VectorXd BlackBoxLearner::getAction(const Eigen::VectorXd& state, std::default_random_engine* engine) const
+{
+  return policy->getAction(state, engine);
 }
 
 void BlackBoxLearner::setNbThreads(int nb_threads_)
@@ -204,7 +230,7 @@ void BlackBoxLearner::fromJson(const Json::Value& v, const std::string& dir_name
   rhoban_utils::tryRead(v, "discount", &discount);
 
   // Getting problem
-  std::shared_ptr<const Problem> tmp_problem;
+  std::shared_ptr<Problem> tmp_problem;
   std::string problem_path;
   rhoban_utils::tryRead(v, "problem_path", &problem_path);
   if (problem_path != "")
@@ -215,7 +241,7 @@ void BlackBoxLearner::fromJson(const Json::Value& v, const std::string& dir_name
   {
     tmp_problem = ProblemFactory().read(v, "problem", dir_name);
   }
-  problem = std::dynamic_pointer_cast<const BlackBoxProblem>(tmp_problem);
+  problem = std::dynamic_pointer_cast<BlackBoxProblem>(tmp_problem);
   if (!problem)
   {
     throw std::runtime_error("BlackBoxLearner::fromJson: problem is not a BlackBoxProblem");
@@ -251,4 +277,12 @@ void BlackBoxLearner::writeScore(double score)
   results_file << iterations << "," << score << "," << elapsed << std::endl;
 }
 
+void BlackBoxLearner::setTask(const Eigen::VectorXd& task)
+{
+  problem->setTask(task);
+}
+Eigen::VectorXd BlackBoxLearner::getAutomatedTask(double difficulty) const
+{
+  return problem->getAutomatedTask(difficulty);
+}
 }  // namespace csa_mdp

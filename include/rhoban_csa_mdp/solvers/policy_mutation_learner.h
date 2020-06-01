@@ -144,9 +144,6 @@ protected:
   /// The current version of the tree
   std::unique_ptr<rhoban_fa::FATree> policy_tree;
 
-  /// Current policy
-  std::unique_ptr<Policy> policy;
-
   /// Optimizer used to change split position or to train models
   /// TODO: later, several optimizers should be provided
   std::unique_ptr<rhoban_bbo::Optimizer> optimizer;
