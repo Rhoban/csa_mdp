@@ -104,4 +104,17 @@ void FAPolicy::saveFA(const std::string& filename) const
   fa->save(filename);
 }
 
+std::unique_ptr<rhoban_fa::FATree> FAPolicy::extractFATree() const
+{
+  try
+  {
+    const rhoban_fa::FATree& tree = dynamic_cast<const rhoban_fa::FATree&>(*fa);
+    return std::unique_ptr<rhoban_fa::FATree>((rhoban_fa::FATree*)tree.clone().release());
+  }
+  catch (const std::bad_cast& exc)
+  {
+    throw std::runtime_error(DEBUG_INFO + " not implemented for non FATree approximators");
+  }
+}
+
 }  // namespace csa_mdp

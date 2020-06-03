@@ -41,6 +41,7 @@ void DBCL::update(std::default_random_engine* engine)
     difficulty = nb_successful_steps / (double)(nb_difficulty_steps);
     std::cout << "increasing difficulty to " << difficulty << std::endl;
     // Resetting some properties of the student. This hack currently works only for LPPI.
+    student->setTask(student->getAutomatedTask(difficulty));
     student->init(engine);
   }
 }

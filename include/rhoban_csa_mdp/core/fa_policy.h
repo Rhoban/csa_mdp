@@ -26,6 +26,7 @@ public:
   virtual void fromJson(const Json::Value& v, const std::string& dir_name) override;
 
   void saveFA(const std::string& filename) const;
+  std::unique_ptr<rhoban_fa::FATree> extractFATree() const override;
 
 private:
   /// The policies

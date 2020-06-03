@@ -695,6 +695,8 @@ bool PML2::submitTree(std::unique_ptr<rhoban_fa::FATree> new_tree, const std::ve
   std::cout << "\tnew local reward: " << new_local_reward << std::endl;
   std::cout << "\told global reward: " << old_global_reward << std::endl;
   std::cout << "\tnew global reward: " << new_global_reward << std::endl;
+  std::cout << "\tlocal eval uses: " << initial_states.size() << " states" << std::endl;
+  std::cout << "\tglobal eval uses: " << getNbEvaluationTrials() << " states" << std::endl;
   // Replace current if improvement has been seen both locally and globally
   if (new_local_reward > old_local_reward && new_global_reward > old_global_reward)
   {
