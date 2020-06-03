@@ -34,7 +34,7 @@ private:
   /// The number of difficulty steps which have been properly mastered
   int nb_successful_steps;
 
-  /// The number of difficulty steps that are used
+  /// The number of intermediary difficulty steps that are used
   int nb_difficulty_steps;
 
   /// Current difficulty [0,1]

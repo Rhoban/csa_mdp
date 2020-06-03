@@ -35,10 +35,10 @@ void DBCL::update(std::default_random_engine* engine)
   log_row["difficulty"] = std::to_string(difficulty);
   output_log.insertRow(log_row);
 
-  if (performance > performance_required)
+  if (performance > performance_required && nb_difficulty_steps > 0)
   {
     nb_successful_steps++;
-    difficulty = nb_successful_steps / (double)nb_difficulty_steps;
+    difficulty = nb_successful_steps / (double)(nb_difficulty_steps);
     std::cout << "increasing difficulty to " << difficulty << std::endl;
     // Resetting some properties of the student. This hack currently works only for LPPI.
     student->init(engine);
@@ -62,5 +62,9 @@ void DBCL::fromJson(const Json::Value& v, const std::string& dir_name)
   student = BlackBoxLearnerFactory().build(v["student"], dir_name);
   rhoban_utils::tryRead(v, "performance_required", &performance_required);
   rhoban_utils::tryRead(v, "nb_difficulty_steps", &nb_difficulty_steps);
+  if (nb_difficulty_steps == 0)
+  {
+    difficulty = 1;
+  }
 }
 }  // namespace csa_mdp
