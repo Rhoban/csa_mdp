@@ -96,10 +96,11 @@ void LPPI::performRollout(Eigen::MatrixXd* states, Eigen::MatrixXd* actions, Eig
     actions->col(idx) = rollout_actions[idx];
     (*values)(idx) = value;
   }
-  std::cout << "-----" << std::endl
-            << "rollout_length : " << rollout_length << std::endl
-            << "final_state : " << state.transpose() << std::endl
-            << "value : " << value << std::endl;
+  if (verbosity > 1)
+    std::cout << "-----" << std::endl
+              << "rollout_length : " << rollout_length << std::endl
+              << "final_state : " << state.transpose() << std::endl
+              << "value : " << value << std::endl;
 }
 
 void LPPI::performRollouts(Eigen::MatrixXd* states, Eigen::MatrixXd* actions, Eigen::VectorXd* values,
@@ -115,9 +116,7 @@ void LPPI::performRollouts(Eigen::MatrixXd* states, Eigen::MatrixXd* actions, Ei
   if (recall_states.cols() > 0)
   {
     states->block(0, 0, state_dims, recall_states.cols()) = recall_states;
-    std::cout << recall_actions.transpose() << std::endl;
     actions->block(0, 0, 1 + action_dims, recall_actions.cols()) = recall_actions;
-    std::cout << recall_values.transpose() << std::endl;
     values->segment(0, recall_values.rows()) = recall_values;
     entry_count += recall_states.cols();
   }
@@ -154,7 +153,8 @@ void LPPI::performRollouts(Eigen::MatrixXd* states, Eigen::MatrixXd* actions, Ei
       actions->block(0, entry_count, 1 + action_dims, nb_new_entries) = rollout_actions;
       values->segment(entry_count, nb_new_entries) = rollout_values;
       entry_count += nb_new_entries;
-      std::cout << "Entry count: " << entry_count << std::endl;
+      if (verbosity > 0)
+        std::cout << "Entry count: " << entry_count << std::endl;
       mutex.unlock();
     }
   };
@@ -216,27 +216,33 @@ void LPPI::update(std::default_random_engine* engine)
   Eigen::MatrixXd states, actions;
   Eigen::VectorXd values;
   TimeStamp start = TimeStamp::now();
-  std::cout << "performing rollouts" << std::endl;
+  if (verbosity > 0)
+    std::cout << "performing rollouts" << std::endl;
   performRollouts(&states, &actions, &values, engine);
   TimeStamp mid1 = TimeStamp::now();
   writeTime("performRollouts", diffSec(start, mid1));
   // Updating both policy and value based on actions
   Eigen::MatrixXd state_limits = problem->getStateLimits();
-  std::cout << "Training value" << std::endl;
+  if (verbosity > 0)
+    std::cout << "Training value" << std::endl;
   updateValues(states, values);
   TimeStamp mid2 = TimeStamp::now();
   writeTime("updateValue", diffSec(mid1, mid2));
-  std::cout << "Training policy" << std::endl;
+  if (verbosity > 0)
+    std::cout << "Training policy" << std::endl;
   std::unique_ptr<rhoban_fa::FunctionApproximator> new_policy_fa = updatePolicy(states, actions);
   TimeStamp mid3 = TimeStamp::now();
   writeTime("updatePolicy", diffSec(mid2, mid3));
-  std::cout << "Building policy" << std::endl;
+  if (verbosity > 0)
+    std::cout << "Building policy" << std::endl;
   std::unique_ptr<Policy> new_policy = buildPolicy(*new_policy_fa);
-  std::cout << "Evaluating policy" << std::endl;
+  if (verbosity > 0)
+    std::cout << "Evaluating policy" << std::endl;
   double new_reward = evaluatePolicy(*new_policy, engine);
   TimeStamp end = TimeStamp::now();
   writeTime("evalPolicy", diffSec(mid3, end));
-  std::cout << "New reward: " << new_reward << std::endl;
+  if (verbosity > 0)
+    std::cout << "New reward: " << new_reward << std::endl;
   if (new_reward > best_reward)
   {
     policy = std::move(new_policy);
@@ -250,7 +256,8 @@ void LPPI::update(std::default_random_engine* engine)
     if (!increase_last_iteration)
     {
       nb_entries = nb_entries * 2;
-      std::cout << "double number of entries, new nb :" << nb_entries << std::endl;
+      if (verbosity > 0)
+        std::cout << "double number of entries, new nb :" << nb_entries << std::endl;
       entries_increasement--;
       increase_last_iteration = true;
     }
