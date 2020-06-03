@@ -122,18 +122,7 @@ double BlackBoxLearner::localEvaluation(const Policy& p, const Eigen::MatrixXd& 
     {
       for (int idx = 0; idx < thread_evaluations; idx++)
       {
-        Eigen::VectorXd state = starting_states[idx];
-        double gain = 1.0;
-        for (int step = 0; step < trial_length; step++)
-        {
-          Eigen::VectorXd action = p.getAction(state, engine);
-          Problem::Result result = problem->getSuccessor(state, action, engine);
-          state = result.successor;
-          rewards(idx + start_idx) += gain * result.reward;
-          gain = gain * discount;
-          if (result.terminal)
-            break;
-        }
+        rewards(idx + start_idx) = runEpisode(p, starting_states[idx], engine);
       }
     }
     catch (const std::runtime_error& exc)
@@ -166,7 +155,7 @@ double BlackBoxLearner::evaluation(const Policy& p, const std::vector<Eigen::Vec
         for (int idx = start_idx; idx < end_idx; idx++)
         {
           Eigen::VectorXd state = initial_states[idx];
-          rewards(idx) = runEpisode(initial_states[idx], engine);
+          rewards(idx) = runEpisode(p, initial_states[idx], engine);
         }
       };
   // Preparing random_engines
@@ -176,6 +165,32 @@ double BlackBoxLearner::evaluation(const Policy& p, const std::vector<Eigen::Vec
   rhoban_utils::MultiCore::runParallelStochasticTask(task, nb_evaluations, &engines);
   // Result
   return rewards.mean();
+}
+
+double BlackBoxLearner::runEpisode(const Policy& p, const Eigen::VectorXd& initial_state,
+                                   std::default_random_engine* engine, Problem::Episode* episode) const
+{
+  double gain = 1.0;
+  double reward = 0;
+  if (episode)
+  {
+    episode->clear();
+    episode->states.push_back(initial_state);
+  }
+  Eigen::VectorXd state = initial_state;
+  for (int step = 0; step < trial_length; step++)
+  {
+    Eigen::VectorXd action = p.getAction(problem->getLearningState(state), engine);
+    Problem::Result result = problem->getSuccessor(state, action, engine);
+    state = result.successor;
+    reward += gain * result.reward;
+    gain = gain * discount;
+    if (episode)
+      episode->feed(action, result);
+    if (result.terminal)
+      break;
+  }
+  return reward;
 }
 
 double BlackBoxLearner::runEpisode(const Eigen::VectorXd& initial_state, std::default_random_engine* engine,
@@ -191,7 +206,7 @@ double BlackBoxLearner::runEpisode(const Eigen::VectorXd& initial_state, std::de
   Eigen::VectorXd state = initial_state;
   for (int step = 0; step < trial_length; step++)
   {
-    Eigen::VectorXd action = getAction(state, engine);
+    Eigen::VectorXd action = getAction(problem->getLearningState(state), engine);
     Problem::Result result = problem->getSuccessor(state, action, engine);
     state = result.successor;
     reward += gain * result.reward;
@@ -206,7 +221,7 @@ double BlackBoxLearner::runEpisode(const Eigen::VectorXd& initial_state, std::de
 
 Eigen::VectorXd BlackBoxLearner::getAction(const Eigen::VectorXd& state, std::default_random_engine* engine) const
 {
-  return policy->getAction(state, engine);
+  return policy->getAction(problem->getLearningState(state), engine);
 }
 
 void BlackBoxLearner::setNbThreads(int nb_threads_)

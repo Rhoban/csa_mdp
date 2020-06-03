@@ -60,6 +60,11 @@ public:
 
   /// Run a learning episode starting with the given initial state and returns the cumulated reward
   /// If episode is provided, the details are stored in it
+  double runEpisode(const Policy& p, const Eigen::VectorXd& initial_state, std::default_random_engine* engine,
+                    Problem::Episode* episode = nullptr) const;
+
+  /// Run a learning episode starting with the given initial state and returns the cumulated reward
+  /// If episode is provided, the details are stored in it
   double runEpisode(const Eigen::VectorXd& initial_state, std::default_random_engine* engine,
                     Problem::Episode* episode = nullptr) const;
 
