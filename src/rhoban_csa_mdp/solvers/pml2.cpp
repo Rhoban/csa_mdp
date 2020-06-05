@@ -220,7 +220,15 @@ double PML2::evalAndGetStates(std::default_random_engine* engine)
   {
     int node_idx = policy_tree->getLeafId(problem->getLearningState(state));
     // node_idx is expected to be present in mutation_candidates
-    mutation_candidates.at(node_idx).visited_states.push_back(state);
+    // However, messing up with the code might break this constraint
+    try
+    {
+      mutation_candidates.at(node_idx).visited_states.push_back(state);
+    }
+    catch (const std::out_of_range& exc)
+    {
+      throw std::out_of_range(DEBUG_INFO + "Failed to find node with id: " + std::to_string(node_idx));
+    }
   }
   return reward;
 }
@@ -342,7 +350,7 @@ void PML2::applyBestSplit(int mutation_id, std::default_random_engine* engine)
   // Testing all dimensions as split and keeping the best one
   double best_score = std::numeric_limits<double>::lowest();
   std::unique_ptr<FATree> best_tree;
-  for (int dim = 0; dim < problem->stateDims(); dim++)
+  for (size_t dim = 0; dim < problem->getLearningDimensions().size(); dim++)
   {
     double score;
     std::unique_ptr<FATree> current_tree = trySplit(dim, training_states, validation_states, engine, &score);
@@ -477,8 +485,10 @@ std::unique_ptr<rhoban_fa::FATree> PML2::trySplit(int split_dim, const std::vect
   // Computing boundaries for split
   double dim_min = std::numeric_limits<double>::max();
   double dim_max = std::numeric_limits<double>::lowest();
-  for (const Eigen::VectorXd& state : training_states)
+  // Dirty hack: compensate here the fact that second half of the training state are initial states
+  for (size_t state_idx = 0; state_idx < training_states.size() / 2; state_idx++)
   {
+    const Eigen::VectorXd& state = training_states[state_idx];
     double v = problem->getLearningState(state)(split_dim);
     if (v < dim_min)
       dim_min = v;
@@ -683,6 +693,7 @@ std::vector<Eigen::VectorXd> PML2::getInitialStates(const MutationCandidate& mc,
       result.push_back(mc.visited_states[idx]);
     }
   }
+  // Improving 'global' optimization by also using initial states
   size_t nb_local_samples = result.size();
   for (size_t i = 0; i < nb_local_samples; i++)
   {
