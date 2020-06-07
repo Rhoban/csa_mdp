@@ -25,6 +25,9 @@ public:
   virtual Json::Value toJson() const override;
   virtual void fromJson(const Json::Value& v, const std::string& dir_name) override;
 
+  std::vector<std::string> getMetaColumns() const override;
+  std::map<std::string, std::string> getMetaData() const override;
+
 private:
   std::unique_ptr<BlackBoxLearner> student;
 
@@ -39,9 +42,6 @@ private:
 
   /// Current difficulty [0,1]
   double difficulty;
-
-  /// Storing evolution of results
-  rhoban_utils::StringTable output_log;
 };
 
 }  // namespace csa_mdp

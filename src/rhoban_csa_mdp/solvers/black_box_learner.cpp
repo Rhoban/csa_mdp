@@ -6,14 +6,21 @@
 #include "rhoban_random/tools.h"
 #include "rhoban_utils/threading/multi_core.h"
 
+using rhoban_utils::StringTable;
 using rhoban_utils::TimeStamp;
 
 namespace csa_mdp
 {
 BlackBoxLearner::BlackBoxLearner()
-  : nb_threads(1), time_budget(60), discount(0.98), trial_length(50), nb_evaluation_trials(100), iterations(0)
+  : nb_threads(1)
+  , time_budget(60)
+  , discount(0.98)
+  , trial_length(50)
+  , nb_evaluation_trials(100)
+  , iterations(0)
+  , last_score(std::numeric_limits<double>::lowest())
+  , verbosity(0)
 {
-  openLogs();
 }
 
 BlackBoxLearner::~BlackBoxLearner()
@@ -30,6 +37,7 @@ std::unique_ptr<Policy> BlackBoxLearner::buildPolicy(const rhoban_fa::FunctionAp
 
 void BlackBoxLearner::run(std::default_random_engine* engine)
 {
+  openLogs();
   init(engine);
   // Main learning loop
   learning_start = rhoban_utils::TimeStamp::now();
@@ -243,6 +251,8 @@ void BlackBoxLearner::fromJson(const Json::Value& v, const std::string& dir_name
   rhoban_utils::tryRead(v, "verbosity", &verbosity);
   rhoban_utils::tryRead(v, "time_budget", &time_budget);
   rhoban_utils::tryRead(v, "discount", &discount);
+  rhoban_utils::tryRead(v, "results_path", &results_path);
+  rhoban_utils::tryRead(v, "time_path", &time_path);
 
   // Getting problem
   std::shared_ptr<Problem> tmp_problem;
@@ -265,31 +275,31 @@ void BlackBoxLearner::fromJson(const Json::Value& v, const std::string& dir_name
 
 void BlackBoxLearner::openLogs()
 {
-  // Opening files
-  time_file.open("time.csv");
-  results_file.open("results.csv");
-  // Writing headers
-  time_file << "iteration,part,time" << std::endl;
-  results_file << "iteration,score,elapsed" << std::endl;
+  results_log = StringTable(getMetaColumns());
+  time_log = StringTable({ "iteration", "phase", "time" });
+  if (results_path != "")
+    results_log.startStreaming(results_path);
+  if (time_path != "")
+    time_log.startStreaming(time_path);
 }
 
 void BlackBoxLearner::closeLogs()
 {
-  time_file.close();
-  results_file.close();
+  results_log.endStreaming();
+  time_log.endStreaming();
 }
 
 void BlackBoxLearner::writeTime(const std::string& name, double time)
 {
-  // TODO:
-  // - Add members once available (require implementation in AdaptativeTree)
-  time_file << iterations << "," << name << "," << time << std::endl;
+  std::map<std::string, std::string> entry = { { "iteration", std::to_string(iterations) },
+                                               { "phase", name },
+                                               { "time", std::to_string(time) } };
+  time_log.insertRow(entry);
 }
 
-void BlackBoxLearner::writeScore(double score)
+void BlackBoxLearner::publishIteration()
 {
-  double elapsed = diffSec(learning_start, rhoban_utils::TimeStamp::now());
-  results_file << iterations << "," << score << "," << elapsed << std::endl;
+  results_log.insertRow(getMetaData());
 }
 
 void BlackBoxLearner::setTask(const Eigen::VectorXd& task)
@@ -299,5 +309,22 @@ void BlackBoxLearner::setTask(const Eigen::VectorXd& task)
 Eigen::VectorXd BlackBoxLearner::getAutomatedTask(double difficulty) const
 {
   return problem->getAutomatedTask(difficulty);
+}
+std::vector<std::string> BlackBoxLearner::getMetaColumns() const
+{
+  return { "iteration", "score", "elapsed" };
+}
+
+std::map<std::string, std::string> BlackBoxLearner::getMetaData() const
+{
+  double elapsed = diffSec(learning_start, rhoban_utils::TimeStamp::now());
+  return { { "iteration", std::to_string(iterations) },
+           { "score", std::to_string(last_score) },
+           { "elapsed", std::to_string(elapsed) } };
+}
+
+double BlackBoxLearner::getLastScore() const
+{
+  return last_score;
 }
 }  // namespace csa_mdp

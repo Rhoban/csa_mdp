@@ -147,6 +147,9 @@ public:
   /// - Update policy_tree ids
   void postSplitUpdate(int node_id, int nb_nodes_added);
 
+  std::vector<std::string> getMetaColumns() const override;
+  std::map<std::string, std::string> getMetaData() const override;
+
 protected:
   double
   evalMutation(const Eigen::VectorXd& parameters, const std::vector<Eigen::VectorXd>& initial_states,
@@ -183,6 +186,12 @@ protected:
 
   /// If false: uses orthogonal splits
   bool use_linear_splits;
+
+  /// Number of refinements mutations approved
+  int refinements_approved;
+
+  /// Number of splits approved
+  int splits_approved;
 };
 
 }  // namespace csa_mdp

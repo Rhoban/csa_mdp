@@ -30,8 +30,8 @@ void TreePolicyIteration::init(std::default_random_engine* engine)
   // Reset policy if necessary
   policy->init();
   policy->setActionLimits(problem->getActionsLimits());
-  best_score = evaluatePolicy(*policy, engine);
-  writeScore(best_score);
+  last_score = evaluatePolicy(*policy, engine);
+  publishIteration();
 }
 
 void TreePolicyIteration::update(std::default_random_engine* engine)
@@ -50,10 +50,10 @@ void TreePolicyIteration::update(std::default_random_engine* engine)
   TimeStamp policy_end = TimeStamp::now();
   writeTime("updatePolicy", diffSec(policy_start, policy_end));
   // Evaluate the policy expected score
-  double score = evaluatePolicy(*new_policy, engine);
+  last_score = evaluatePolicy(*new_policy, engine);
   TimeStamp evaluation_end = TimeStamp::now();
   writeTime("evaluation", diffSec(policy_end, evaluation_end));
-  writeScore(score);
+  publishIteration();
   // Save value used to build policy if enabled
   if (use_value_approximator)
   {
@@ -67,9 +67,9 @@ void TreePolicyIteration::update(std::default_random_engine* engine)
   oss_p << "policy" << iterations << ".bin";
   fap.saveFA(oss_p.str());
   // Replace policy if it had a better score
-  if (score > best_score)
+  if (last_score > best_score)
   {
-    best_score = score;
+    best_score = last_score;
     policy = std::move(new_policy);
   }
 }

@@ -51,6 +51,9 @@ public:
   virtual Json::Value toJson() const override;
   virtual void fromJson(const Json::Value& v, const std::string& dir_name) override;
 
+  std::vector<std::string> getMetaColumns() const override;
+  std::map<std::string, std::string> getMetaData() const override;
+
 private:
   /// LPPI uses an open loop planner for optimization of actions
   OpenLoopPlanner planner;

@@ -4,13 +4,8 @@
 
 namespace csa_mdp
 {
-DBCL::DBCL()
-  : nb_successful_steps(0)
-  , nb_difficulty_steps(10)
-  , difficulty(0.0)
-  , output_log({ "iteration", "score", "elapsed", "difficulty" })
+DBCL::DBCL() : nb_successful_steps(0), nb_difficulty_steps(10), difficulty(0.0)
 {
-  output_log.startStreaming("dbcl_results.csv");
 }
 
 DBCL::~DBCL()
@@ -19,6 +14,7 @@ DBCL::~DBCL()
 
 void DBCL::init(std::default_random_engine* engine)
 {
+  student->openLogs();
   student->setTask(student->getAutomatedTask(difficulty));
   student->init(engine);
 }
@@ -26,16 +22,10 @@ void DBCL::update(std::default_random_engine* engine)
 {
   student->setTask(student->getAutomatedTask(difficulty));
   student->update(engine);
-  double performance = student->evaluate(engine);
-  double elapsed = diffSec(learning_start, rhoban_utils::TimeStamp::now());
-  std::map<std::string, std::string> log_row;
-  log_row["iteration"] = std::to_string(iterations);
-  log_row["score"] = std::to_string(performance);
-  log_row["elapsed"] = std::to_string(elapsed);
-  log_row["difficulty"] = std::to_string(difficulty);
-  output_log.insertRow(log_row);
+  last_score = student->getLastScore();
+  publishIteration();
 
-  if (performance > performance_required && nb_difficulty_steps > 0)
+  if (last_score > performance_required && nb_difficulty_steps > 0)
   {
     nb_successful_steps++;
     difficulty = nb_successful_steps / (double)(nb_difficulty_steps);
@@ -67,5 +57,21 @@ void DBCL::fromJson(const Json::Value& v, const std::string& dir_name)
   {
     difficulty = 1;
   }
+}
+std::vector<std::string> DBCL::getMetaColumns() const
+{
+  std::vector<std::string> result = BlackBoxLearner::getMetaColumns();
+  result.push_back("difficulty");
+  for (const std::string& student_meta_column : student->getMetaColumns())
+    result.push_back("student." + student_meta_column);
+  return result;
+}
+std::map<std::string, std::string> DBCL::getMetaData() const
+{
+  std::map<std::string, std::string> result = BlackBoxLearner::getMetaData();
+  result["difficulty"] = std::to_string(difficulty);
+  for (const auto& student_entry : student->getMetaData())
+    result["student." + student_entry.first] = student_entry.second;
+  return result;
 }
 }  // namespace csa_mdp

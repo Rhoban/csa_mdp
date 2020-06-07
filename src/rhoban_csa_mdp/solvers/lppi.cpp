@@ -238,18 +238,18 @@ void LPPI::update(std::default_random_engine* engine)
   std::unique_ptr<Policy> new_policy = buildPolicy(*new_policy_fa);
   if (verbosity > 0)
     std::cout << "Evaluating policy" << std::endl;
-  double new_reward = evaluatePolicy(*new_policy, engine);
+  last_score = evaluatePolicy(*new_policy, engine);
   TimeStamp end = TimeStamp::now();
   writeTime("evalPolicy", diffSec(mid3, end));
   if (verbosity > 0)
-    std::cout << "New reward: " << new_reward << std::endl;
-  if (new_reward > best_reward)
+    std::cout << "New reward: " << last_score << std::endl;
+  if (last_score > best_reward)
   {
     policy = std::move(new_policy);
     policy_fa = std::move(new_policy_fa);
     value->save("value.bin");
     policy_fa->save("policy_fa.bin");
-    best_reward = new_reward;
+    best_reward = last_score;
   }
   else if (entries_increasement != 0)
   {
@@ -267,7 +267,7 @@ void LPPI::update(std::default_random_engine* engine)
     }
   }
 
-  writeScore(best_reward);
+  publishIteration();
   updateMemory(states, actions, values, engine);
 }
 
@@ -366,6 +366,21 @@ void LPPI::fromJson(const Json::Value& v, const std::string& dir_name)
   planner.prepareOptimizer(*problem);
   // Update value_trainer and policy_trainer number of threads
   setNbThreads(nb_threads);
+}
+
+std::vector<std::string> LPPI::getMetaColumns() const
+{
+  std::vector<std::string> result = BlackBoxLearner::getMetaColumns();
+  result.push_back("nb_entries");
+  result.push_back("entries_increasement");
+  return result;
+}
+std::map<std::string, std::string> LPPI::getMetaData() const
+{
+  std::map<std::string, std::string> result = BlackBoxLearner::getMetaData();
+  result["nb_entries"] = std::to_string(nb_entries);
+  result["entries_increasement"] = std::to_string(entries_increasement);
+  return result;
 }
 
 }  // namespace csa_mdp

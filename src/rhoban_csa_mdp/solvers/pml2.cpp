@@ -63,7 +63,13 @@ Eigen::VectorXd computeStatesDeviation(const std::vector<Eigen::VectorXd>& state
 }
 
 PML2::PML2()
-  : training_evaluations(50), split_margin(0.05), evaluations_ratio(-1), age_basis(1.02), use_linear_splits(false)
+  : training_evaluations(50)
+  , split_margin(0.05)
+  , evaluations_ratio(-1)
+  , age_basis(1.02)
+  , use_linear_splits(false)
+  , refinements_approved(0)
+  , splits_approved(0)
 {
 }
 
@@ -142,9 +148,9 @@ void PML2::update(std::default_random_engine* engine)
   int mutation_id = getMutationId(engine);
   mutate(mutation_id, engine);
   TimeStamp post_mutation = TimeStamp::now();
-  double new_reward = evalAndGetStates(engine);
+  last_score = evalAndGetStates(engine);
   TimeStamp post_evaluation = TimeStamp::now();
-  std::cout << "New reward: " << new_reward << std::endl;
+  std::cout << "New reward: " << last_score << std::endl;
   policy_tree->save("policy_tree.bin");
   updateMutationsScores();
   TimeStamp post_misc = TimeStamp::now();
@@ -152,7 +158,7 @@ void PML2::update(std::default_random_engine* engine)
   writeTime("mutation", diffSec(start, post_mutation));
   writeTime("evaluation", diffSec(post_mutation, post_evaluation));
   writeTime("misc", diffSec(post_evaluation, post_misc));
-  writeScore(new_reward);
+  publishIteration();
 }
 
 Eigen::VectorXd PML2::optimize(rhoban_bbo::Optimizer::RewardFunc rf, const Eigen::MatrixXd& space,
@@ -332,7 +338,8 @@ void PML2::tryRefine(int mutation_id, int action_id, std::default_random_engine*
       policy_tree->copyAndReplaceLeaf(problem->getLearningState(initial_states[0]), std::move(refined_approximator));
   // Submit the new tree
   initial_states = getInitialStates(*mutation, false, engine);
-  submitTree(std::move(refined_tree), initial_states, engine);
+  if (submitTree(std::move(refined_tree), initial_states, engine))
+    refinements_approved++;
   // Update mutation properties:
   mutation->last_training = iterations;
 }
@@ -371,9 +378,13 @@ void PML2::applyBestSplit(int mutation_id, std::default_random_engine* engine)
   // Evaluating policy with respect to previous solution
   int nb_new_nodes = split.getNbElements();
   bool replaced_policy = submitTree(std::move(best_tree), training_states, engine);
-  // If the new approximation does not replace current one, reuse current FA for children
-  if (!replaced_policy)
+  if (replaced_policy)
   {
+    splits_approved++;
+  }
+  else
+  {
+    // If the new approximation does not replace current one, reuse current FA for children
     // Create a new FATree with cloned approximators
     std::vector<std::unique_ptr<FunctionApproximator>> approximators;
     for (int elem = 0; elem < split_copy->getNbElements(); elem++)
@@ -424,9 +435,13 @@ void PML2::applyBestLinearSplit(int mutation_id, std::default_random_engine* eng
   // Evaluating policy with respect to previous solution
   int nb_new_nodes = split.getNbElements();
   bool replaced_policy = submitTree(std::move(best_tree), training_states, engine);
-  // If the new approximation does not replace current one, reuse current FA for children
-  if (!replaced_policy)
+  if (replaced_policy)
   {
+    splits_approved++;
+  }
+  else
+  {
+    // If the new approximation does not replace current one, reuse current FA for children
     // Create a new FATree with cloned approximators
     std::vector<std::unique_ptr<FunctionApproximator>> approximators;
     for (int elem = 0; elem < split_copy->getNbElements(); elem++)
@@ -772,6 +787,21 @@ PML2::evalMutation(const Eigen::VectorXd& parameters, const std::vector<Eigen::V
   // TODO: avoid this second copy of the tree which is not necessary
   std::unique_ptr<Policy> policy = buildPolicy(*new_tree);
   return evaluation(*policy, initial_states, engine);
+}
+
+std::vector<std::string> PML2::getMetaColumns() const
+{
+  std::vector<std::string> result = BlackBoxLearner::getMetaColumns();
+  result.push_back("refinements_approved");
+  result.push_back("splits_approved");
+  return result;
+}
+std::map<std::string, std::string> PML2::getMetaData() const
+{
+  std::map<std::string, std::string> result = BlackBoxLearner::getMetaData();
+  result["refinements_approved"] = std::to_string(refinements_approved);
+  result["splits_approved"] = std::to_string(splits_approved);
+  return result;
 }
 
 }  // namespace csa_mdp

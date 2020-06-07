@@ -97,9 +97,9 @@ void PolicyMutationLearner::update(std::default_random_engine* engine)
   int mutation_id = getMutationId(engine);
   mutate(mutation_id, engine);
   TimeStamp post_mutation = TimeStamp::now();
-  double new_reward = evalAndGetStates(engine);
+  last_score = evalAndGetStates(engine);
   TimeStamp post_evaluation = TimeStamp::now();
-  std::cout << "New reward: " << new_reward << std::endl;
+  std::cout << "New reward: " << last_score << std::endl;
   policy_tree->save("policy_tree.bin");
   updateMutationsScores();
   TimeStamp post_misc = TimeStamp::now();
@@ -107,7 +107,7 @@ void PolicyMutationLearner::update(std::default_random_engine* engine)
   writeTime("mutation", diffSec(start, post_mutation));
   writeTime("evaluation", diffSec(post_mutation, post_evaluation));
   writeTime("misc", diffSec(post_evaluation, post_misc));
-  writeScore(new_reward);
+  publishIteration();
 }
 
 Eigen::VectorXd PolicyMutationLearner::optimize(rhoban_bbo::Optimizer::RewardFunc rf, const Eigen::MatrixXd& space,

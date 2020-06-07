@@ -1,14 +1,15 @@
 #pragma once
 
-#include "rhoban_csa_mdp/core/black_box_problem.h"
-#include "rhoban_csa_mdp/core/policy.h"
-#include "rhoban_csa_mdp/value_approximators/value_approximator.h"
+#include <rhoban_csa_mdp/core/black_box_problem.h>
+#include <rhoban_csa_mdp/core/policy.h>
+#include <rhoban_csa_mdp/value_approximators/value_approximator.h>
 
-#include "rhoban_fa/function_approximator.h"
-#include "rhoban_fa/optimizer_trainer.h"
+#include <rhoban_fa/function_approximator.h>
+#include <rhoban_fa/optimizer_trainer.h>
 
-#include "rhoban_utils/serialization/json_serializable.h"
-#include "rhoban_utils/timing/time_stamp.h"
+#include <rhoban_utils/serialization/json_serializable.h>
+#include <rhoban_utils/timing/time_stamp.h>
+#include <rhoban_utils/tables/string_table.h>
 
 #include <fstream>
 #include <memory>
@@ -85,11 +86,20 @@ public:
   /// Dump the time consumption to the time file
   void writeTime(const std::string& name, double time);
 
-  /// Dump the score at current iteration
-  void writeScore(double score);
+  /// Dump metaData for current iteration to the result_log
+  void publishIteration();
 
   void setTask(const Eigen::VectorXd& task);
   Eigen::VectorXd getAutomatedTask(double difficulty) const;
+
+  /// Return the name of the different columns of the metaData
+  /// the order in the csv file follows the order in the returned vector
+  virtual std::vector<std::string> getMetaColumns() const;
+
+  /// Returns the meta data of the algorithm
+  virtual std::map<std::string, std::string> getMetaData() const;
+
+  double getLastScore() const;
 
 protected:
   /// The problem to solve
@@ -119,14 +129,28 @@ protected:
   /// Number of iterations performed
   int iterations;
 
+  /// Last score obtained
+  double last_score;
+
   /// Verbosity level of the learner
   int verbosity;
 
-  /// Storing time logs
-  std::ofstream time_file;
+  /// A table output which stores 1 row per iteration
+  /// Base content is {"iterations", "score", "elapsed"}
+  /// Additional columns might be added by overriding @getMetaData and @getMetaColumns
+  rhoban_utils::StringTable results_log;
 
-  /// Storing evaluation logs
-  std::ofstream results_file;
+  /// Path to which the results log should be streamed.
+  /// If empty, results are not written
+  std::string results_path;
+
+  /// A table output which can store multiple rows per iteration
+  /// Base content is {"iterations", "name", "elapsed"}
+  rhoban_utils::StringTable time_log;
+
+  /// Path to which the time log should be streamed.
+  /// If empty, results are not written
+  std::string time_path;
 };
 
 }  // namespace csa_mdp
