@@ -66,3 +66,17 @@ add_library(rhoban_csa_mdp
 target_link_libraries(rhoban_csa_mdp
   ${catkin_LIBRARIES}
   )
+
+set(TESTS
+  kd_trees/kd_node
+  kd_trees/kd_tree_container
+  )
+
+if (CATKIN_ENABLE_TESTING)
+  # create an executable for each test
+  foreach(test ${TESTS})
+    string(REPLACE "/" "_" id ${test})
+    catkin_add_gtest(${id} tests/${test}.cpp)
+    target_link_libraries(${id} ${catkin_LIBRARIES} rhoban_csa_mdp)
+  endforeach(test)
+endif()

@@ -25,7 +25,6 @@ BlackBoxLearner::BlackBoxLearner()
 
 BlackBoxLearner::~BlackBoxLearner()
 {
-  closeLogs();
 }
 
 std::unique_ptr<Policy> BlackBoxLearner::buildPolicy(const rhoban_fa::FunctionApproximator& fa) const
