@@ -247,6 +247,13 @@ Eigen::VectorXd Problem::getAutomatedTask(double difficulty) const
   throw std::logic_error(DEBUG_INFO + "Not implemented");
 }
 
+std::pair<Eigen::VectorXd, Eigen::MatrixXd> Problem::splitMultiAgentState(const Eigen::VectorXd& exhaustive_state) const
+{
+  Eigen::MatrixXd agents(1, 1);
+  agents << exhaustive_state.segment(0, 1);
+  return std::make_pair(exhaustive_state, agents);
+}
+
 double Problem::sampleRolloutReward(const Eigen::VectorXd& initial_state, const csa_mdp::Policy& policy,
                                     int max_horizon, double discount, std::default_random_engine* engine) const
 {

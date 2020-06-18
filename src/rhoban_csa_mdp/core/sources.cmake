@@ -10,4 +10,5 @@ set(SOURCES
   problem.cpp
   problem_factory.cpp
   sample.cpp
+  agent_selector.cpp
 )
