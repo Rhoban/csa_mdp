@@ -190,6 +190,18 @@ Eigen::MatrixXd Problem::getLearningStateLimits() const
   return learning_limits;
 }
 
+std::pair<Eigen::VectorXd, Eigen::MatrixXd> Problem::splitMultiAgentState(const Eigen::VectorXd& exhaustive_state) const
+{
+  Eigen::MatrixXd agents(1, 1);
+  agents << exhaustive_state.segment(0, 1);
+  return std::make_pair(exhaustive_state, agents);
+}
+
+// Eigen::MatrixXd Problem::getMultiAgentStateLimits() const
+// {
+//   return getLearningStateLimits();
+// }
+
 double Problem::sampleRolloutReward(const Eigen::VectorXd& initial_state, const csa_mdp::Policy& policy,
                                     int max_horizon, double discount, std::default_random_engine* engine) const
 {

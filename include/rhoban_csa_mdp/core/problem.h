@@ -107,6 +107,10 @@ public:
   /// Filters an exhaustive state to use only states relevant for learning
   Eigen::MatrixXd getLearningStateLimits() const;
 
+  /// Filters an exhaustive state to use only states relevant for multi-agent learning
+  virtual std::pair<Eigen::VectorXd, Eigen::MatrixXd>
+  splitMultiAgentState(const Eigen::VectorXd& exhaustive_state) const;
+
   /// Uses an external random engine and generate successor, reward and terminal check
   virtual Result getSuccessor(const Eigen::VectorXd& state, const Eigen::VectorXd& action,
                               std::default_random_engine* engine) const = 0;
