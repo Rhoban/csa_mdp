@@ -247,11 +247,27 @@ Eigen::VectorXd Problem::getAutomatedTask(double difficulty) const
   throw std::logic_error(DEBUG_INFO + "Not implemented");
 }
 
+int Problem::getNbStaticElements() const
+{
+  return nb_static_element;
+}
+
+int Problem::getNbAgents() const
+{
+  return nb_agents;
+}
+
 std::pair<Eigen::VectorXd, Eigen::MatrixXd> Problem::splitMultiAgentState(const Eigen::VectorXd& exhaustive_state) const
 {
-  Eigen::MatrixXd agents(1, 1);
-  agents << exhaustive_state.segment(0, 1);
-  return std::make_pair(exhaustive_state, agents);
+  // agent sorted
+  Eigen::VectorXd world = exhaustive_state.segment(0, nb_static_element);
+  int agent_dim = (exhaustive_state.size() - nb_static_element) / nb_agents;
+  Eigen::MatrixXd agents(nb_agents, agent_dim);
+  for (int i = 0; i < nb_agents; i++)
+  {
+    agents << exhaustive_state.segment(nb_static_element + agent_dim * i, agent_dim);
+  }
+  return std::make_pair(world, agents);
 }
 
 double Problem::sampleRolloutReward(const Eigen::VectorXd& initial_state, const csa_mdp::Policy& policy,
@@ -275,6 +291,14 @@ double Problem::sampleRolloutReward(const Eigen::VectorXd& initial_state, const 
       break;
   }
   return reward;
+}
+
+void Problem::fromJson(const Json::Value& v, const std::string& dir_name)
+{
+  rhoban_utils::tryRead(v, "nb_agents", &nb_agents);
+  rhoban_utils::tryRead(v, "nb_static_element", &nb_static_element);
+  rhoban_utils::tryRead(v, "nb_agents_policy", &nb_agents_policy);
+  rhoban_utils::tryRead(v, "agent_size", &agent_size);
 }
 
 }  // namespace csa_mdp

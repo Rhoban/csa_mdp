@@ -89,6 +89,13 @@ private:
 
 protected:
   Eigen::VectorXd active_task;
+  /// state elements
+  int nb_static_element, nb_agents;
+  /// state reduction
+  int nb_agents_policy;
+
+  // ROBOTS SET UP
+  double agent_size;
 
 public:
   Problem();
@@ -162,6 +169,9 @@ public:
   virtual void setTask(const Eigen::VectorXd& task);
   virtual Eigen::VectorXd getAutomatedTask(double difficulty) const;
 
+  int getNbStaticElements() const;
+  int getNbAgents() const;
+
   /// Filters an exhaustive state to use only states relevant for multi-agent learning
   virtual std::pair<Eigen::VectorXd, Eigen::MatrixXd>
   splitMultiAgentState(const Eigen::VectorXd& exhaustive_state) const;
@@ -172,6 +182,7 @@ public:
 
   double sampleRolloutReward(const Eigen::VectorXd& initial_state, const csa_mdp::Policy& policy, int max_horizon,
                              double discount, std::default_random_engine* engine) const;
+  void fromJson(const Json::Value& v, const std::string& dir_name);
 };
 
 }  // namespace csa_mdp
