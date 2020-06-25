@@ -16,7 +16,12 @@ bool sortByScore(const std::pair<double, Eigen::VectorXd>& a, const std::pair<do
   return (a.first < b.first);
 }
 
-double AgentSelector::getDist(Eigen::VectorXd agent_1, Eigen::VectorXd agent_2)
+int AgentSelector::getNbAgents() const
+{
+  return this->pb->getNbAgents();
+}
+
+double AgentSelector::getDist(Eigen::VectorXd agent_1, Eigen::VectorXd agent_2) const
 {
   if (agent_1.size() != agent_2.size())
   {
@@ -41,8 +46,8 @@ double AgentSelector::getDist(Eigen::VectorXd agent_1, Eigen::VectorXd agent_2)
   }
 }
 
-Eigen::VectorXd AgentSelector::getRevelantAgents(const Eigen::VectorXd world, const Eigen::MatrixXd agents,
-                                                 const int main_agent)
+Eigen::VectorXd AgentSelector::getRevelantAgents(const Eigen::VectorXd& world, const Eigen::MatrixXd& agents,
+                                                 int main_agent) const
 {
   Eigen::MatrixXd agents_to_score = removeMainAgent(agents, main_agent);
   std::vector<std::pair<double, Eigen::VectorXd>> score_agents;
@@ -55,13 +60,14 @@ Eigen::VectorXd AgentSelector::getRevelantAgents(const Eigen::VectorXd world, co
 
   // select the closests agents
   std::sort(score_agents.begin(), score_agents.end(), sortByScore);
-  Eigen::VectorXd agent_state(nb_selected_agents * agents.cols());
+  Eigen::VectorXd agent_state(nb_selected_agents + 1 * agents.cols());
+  agent_state << agents.row(main_agent);
   for (int i = 0; i < nb_selected_agents; i++)
     agent_state << score_agents.at(i).second;
   return agent_state;
 }
 
-Eigen::VectorXd AgentSelector::getRelevantState(const Eigen::VectorXd state, const int main_agent)
+Eigen::VectorXd AgentSelector::getRelevantState(const Eigen::VectorXd& state, int main_agent) const
 {
   // split world and state
   std::pair<Eigen::VectorXd, Eigen::MatrixXd> split_state = this->pb->splitMultiAgentState(state);
@@ -73,7 +79,7 @@ Eigen::VectorXd AgentSelector::getRelevantState(const Eigen::VectorXd state, con
   return relevant_state;
 }
 
-const Eigen::MatrixXd& AgentSelector::getStateLimits() const
+const Eigen::MatrixXd AgentSelector::getStateLimits() const
 {
   // get limits of world and n agents
   int nb_dimensions = this->pb->getNbStaticElements();
@@ -90,25 +96,35 @@ const Eigen::MatrixXd& AgentSelector::getStateLimits() const
 
 int AgentSelector::getNbActions() const
 {
-  // one because we are dealing with one agent at the time
-  return 1;
+  return this->pb->getNbActions();
 }
 
-const Eigen::MatrixXd& AgentSelector::getActionsLimits() const
+const std::vector<Eigen::MatrixXd> AgentSelector::getActionsLimits() const
 {
   // get limits for one action
+
+  int nb_agents = this->pb->getNbAgents();
   std::vector<Eigen::MatrixXd> action_limits = this->pb->getActionsLimits();
-  return action_limits.front();
+  int action_dimension = action_limits.front().rows() / nb_agents;
+
+  std::vector<Eigen::MatrixXd> relevant_action_limits;
+  for (std::vector<Eigen::MatrixXd>::iterator it = action_limits.begin(); it != action_limits.end(); ++it)
+  {
+    Eigen::MatrixXd full_action = *it;
+    relevant_action_limits.push_back(full_action.block(0, 0, action_dimension, full_action.cols()));
+  }
+
+  return relevant_action_limits;
 }
 
 Eigen::VectorXd AgentSelector::getAction(Eigen::VectorXd actions, int agent)
 {
   int nb_agents = this->pb->getNbAgents();
   int action_dimension = actions.size() / nb_agents;
-  return actions.segment(agent * action_dimension, action_dimension),
+  return actions.segment(agent * action_dimension, action_dimension);
 }
 
-const Eigen::VectorXd& AgentSelector::mergeActions(std::vector<Eigen::VectorXd> actions) const
+const Eigen::VectorXd AgentSelector::mergeActions(std::vector<Eigen::VectorXd>& actions) const
 {
   int nb_actions = actions.size();
   Eigen::VectorXd merged_actions(nb_actions * actions.front().size());
@@ -119,7 +135,7 @@ const Eigen::VectorXd& AgentSelector::mergeActions(std::vector<Eigen::VectorXd> 
   return merged_actions;
 }
 
-Eigen::MatrixXd AgentSelector::removeMainAgent(Eigen::MatrixXd agents, int main_agent)
+Eigen::MatrixXd AgentSelector::removeMainAgent(Eigen::MatrixXd agents, int main_agent) const
 {
   unsigned int numRows = agents.rows() - 1;
   unsigned int numCols = agents.cols();
