@@ -124,6 +124,8 @@ void ALPGMM::fromJson(const Json::Value& v, const std::string& dir_name)
 {
   BlackBoxLearner::fromJson(v, dir_name);
   student = BlackBoxLearnerFactory().build(v["student"], dir_name);
+  // Need to reapply the number of threads after reading the student
+  setNbThreads(nb_threads);
   rhoban_utils::tryRead(v, "fitting_rate", &fitting_rate);
   rhoban_utils::tryRead(v, "p_rnd", &p_rnd);
   rhoban_utils::tryRead(v, "updates_per_task", &updates_per_task);
