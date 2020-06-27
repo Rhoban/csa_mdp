@@ -56,6 +56,11 @@ double BlackBoxLearner::evaluate(std::default_random_engine* engine)
   return evaluatePolicy(*policy, engine);
 }
 
+double BlackBoxLearner::evaluate(int nb_evaluations, std::default_random_engine* engine)
+{
+  return evaluatePolicy(*policy, nb_evaluations, engine);
+}
+
 double BlackBoxLearner::evaluatePolicy(const Policy& p, std::default_random_engine* engine) const
 {
   return evaluatePolicy(p, nb_evaluation_trials, engine);
@@ -303,6 +308,8 @@ void BlackBoxLearner::publishIteration()
 
 void BlackBoxLearner::setTask(const Eigen::VectorXd& task)
 {
+  if (!problem)
+    throw std::logic_error(DEBUG_INFO + "problem is not set");
   problem->setTask(task);
 }
 Eigen::VectorXd BlackBoxLearner::getAutomatedTask(double difficulty) const

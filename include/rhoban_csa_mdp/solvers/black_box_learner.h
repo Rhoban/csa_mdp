@@ -38,8 +38,11 @@ public:
   /// Perform a single step of update of an iterative learner
   virtual void update(std::default_random_engine* engine) = 0;
 
-  /// Evaluate the performance of current policy
-  double evaluate(std::default_random_engine* engine);
+  /// Evaluate the performance of current policy with nb_evaluation_trials episodes
+  virtual double evaluate(std::default_random_engine* engine);
+
+  /// Evaluate the performance of current policy with the provided number of experiments
+  virtual double evaluate(int nb_experiments, std::default_random_engine* engine);
 
   /// Use nb_evaluation_trials evaluations
   virtual double evaluatePolicy(const Policy& p, std::default_random_engine* engine) const;

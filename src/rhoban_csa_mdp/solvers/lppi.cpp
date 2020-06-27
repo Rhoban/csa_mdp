@@ -290,7 +290,8 @@ void LPPI::updateMemory(const Eigen::MatrixXd& states, const Eigen::MatrixXd& ac
   int recall_entries = std::min(states.cols(), (long int)std::floor(recall_ratio * nb_entries));
   if (recall_entries == 0)
     return;
-  std::cout << "Recalling " << recall_entries << " entries" << std::endl;
+  if (verbosity >= 1)
+    std::cout << "Recalling " << recall_entries << " entries" << std::endl;
   recall_states = Eigen::MatrixXd(states.rows(), recall_entries);
   recall_actions = Eigen::MatrixXd(actions.rows(), recall_entries);
   recall_values = Eigen::VectorXd(recall_entries);

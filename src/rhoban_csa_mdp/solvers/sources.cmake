@@ -1,4 +1,5 @@
 set(SOURCES
+  alp_gmm.cpp
   black_box_learner.cpp
   black_box_learner_factory.cpp
   dbcl.cpp
