@@ -3,7 +3,7 @@
 
 namespace csa_mdp
 {
-AgentSelector::AgentSelector() : nb_selected_agents(5)
+AgentSelector::AgentSelector() : nb_selected_agents(2)
 {
 }
 
@@ -61,9 +61,9 @@ Eigen::VectorXd AgentSelector::getRevelantAgents(const Eigen::VectorXd& world, c
   // select the closests agents
   std::sort(score_agents.begin(), score_agents.end(), sortByScore);
   Eigen::VectorXd agent_state(nb_selected_agents + 1 * agents.cols());
-  agent_state << agents.row(main_agent);
+  agent_state(0) = agents(main_agent, 0);
   for (int i = 0; i < nb_selected_agents; i++)
-    agent_state << score_agents.at(i).second;
+    agent_state(i + 1) = score_agents.at(i).second(0);
   return agent_state;
 }
 
@@ -74,7 +74,7 @@ Eigen::VectorXd AgentSelector::getRelevantState(const Eigen::VectorXd& state, in
   // get relevant agents
   Eigen::VectorXd relevant_agents = getRevelantAgents(split_state.first, split_state.second, main_agent);
   // merge world and relevant agent
-  Eigen::VectorXd relevant_state(split_state.first.size() + nb_selected_agents);
+  Eigen::VectorXd relevant_state(split_state.first.size() + nb_selected_agents + 1);
   relevant_state << split_state.first, relevant_agents;
   return relevant_state;
 }
@@ -89,7 +89,7 @@ const Eigen::MatrixXd AgentSelector::getStateLimits() const
   Eigen::MatrixXd state_limits = this->pb->getStateLimits();
   for (int i = 0; i < nb_dimensions; i++)
   {
-    relevant_state_limits << state_limits.row(i);
+    relevant_state_limits.row(i) = state_limits.row(i);
   }
   return relevant_state_limits;
 }
@@ -124,13 +124,17 @@ Eigen::VectorXd AgentSelector::getAction(Eigen::VectorXd actions, int agent)
   return actions.segment(agent * action_dimension, action_dimension);
 }
 
-const Eigen::VectorXd AgentSelector::mergeActions(std::vector<Eigen::VectorXd>& actions) const
+const Eigen::VectorXd AgentSelector::mergeActions(std::vector<Eigen::VectorXd> actions) const
 {
   int nb_actions = actions.size();
-  Eigen::VectorXd merged_actions(nb_actions * actions.front().size());
-  for (std::vector<Eigen::VectorXd>::iterator it = actions.begin(); it != actions.end(); ++it)
+  Eigen::VectorXd merged_actions(nb_actions * actions.front().size() + 1);
+  merged_actions << 0;
+
+  // for (std::vector<Eigen::VectorXd>::iterator it = actions.begin(); it != actions.end(); ++it)
+  for (int i = 0; i < actions.size(); i++)
   {
-    merged_actions << *it;
+    Eigen::VectorXd a = actions.at(i);
+    merged_actions(i + 1) = a(0);
   }
   return merged_actions;
 }

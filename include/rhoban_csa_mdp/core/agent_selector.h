@@ -40,7 +40,7 @@ public:
 
   Eigen::VectorXd getAction(Eigen::VectorXd actions, int agent);
 
-  const Eigen::VectorXd mergeActions(std::vector<Eigen::VectorXd>& actions) const;
+  const Eigen::VectorXd mergeActions(std::vector<Eigen::VectorXd> actions) const;
 
   void fromJson(const Json::Value& v, const std::string& dir_name);
 

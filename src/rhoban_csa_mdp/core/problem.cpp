@@ -3,6 +3,7 @@
 #include <rhoban_utils/util.h>
 
 #include <chrono>
+#include <iostream>
 
 namespace csa_mdp
 {
@@ -265,7 +266,7 @@ std::pair<Eigen::VectorXd, Eigen::MatrixXd> Problem::splitMultiAgentState(const 
   Eigen::MatrixXd agents(nb_agents, agent_dim);
   for (int i = 0; i < nb_agents; i++)
   {
-    agents << exhaustive_state.segment(nb_static_element + agent_dim * i, agent_dim);
+    agents.row(i) = exhaustive_state.segment(nb_static_element + agent_dim * i, agent_dim);
   }
   return std::make_pair(world, agents);
 }
