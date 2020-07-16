@@ -298,7 +298,6 @@ void Problem::fromJson(const Json::Value& v, const std::string& dir_name)
 {
   rhoban_utils::tryRead(v, "nb_agents", &nb_agents);
   rhoban_utils::tryRead(v, "nb_static_element", &nb_static_element);
-  rhoban_utils::tryRead(v, "nb_agents_policy", &nb_agents_policy);
   rhoban_utils::tryRead(v, "agent_size", &agent_size);
 }
 

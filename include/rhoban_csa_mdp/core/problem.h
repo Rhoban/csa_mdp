@@ -91,8 +91,6 @@ protected:
   Eigen::VectorXd active_task;
   /// state elements
   int nb_static_element, nb_agents;
-  /// state reduction
-  int nb_agents_policy;
 
   // ROBOTS SET UP
   double agent_size;
