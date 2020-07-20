@@ -2,6 +2,8 @@
 
 #include "rhoban_csa_mdp/solvers/black_box_learner.h"
 #include "rhoban_csa_mdp/online_planners/open_loop_planner.h"
+#include "rhoban_csa_mdp/online_planners/multi_open_loop_planner.h"
+#include "rhoban_csa_mdp/core/agent_selector.h"
 
 #include "rhoban_fa/trainer.h"
 
@@ -57,6 +59,8 @@ public:
 private:
   /// LPPI uses an open loop planner for optimization of actions
   OpenLoopPlanner planner;
+  MultiOpenLoopPlanner multi_planner;
+
   /// A forest describing current value function
   std::unique_ptr<rhoban_fa::FunctionApproximator> value;
   /// A forest describing the value function trainer
@@ -65,6 +69,9 @@ private:
   std::unique_ptr<rhoban_fa::FunctionApproximator> policy_fa;
   /// A forest describing policy trainer
   std::unique_ptr<rhoban_fa::Trainer> policy_trainer;
+  /// as
+  std::unique_ptr<AgentSelector> agent_selector;
+
   /// Minimal remaining length of a rollout to allow use of an entry if the
   /// rollout does not end with a terminal status
   int min_rollout_length;

@@ -7,6 +7,7 @@
 #include "rhoban_fa/function_approximator.h"
 #include "rhoban_fa/function_approximator_factory.h"
 #include "rhoban_fa/trainer_factory.h"
+#include "rhoban_csa_mdp/core/agent_selector_factory.h"
 
 #include "rhoban_random/tools.h"
 
@@ -51,7 +52,10 @@ void LPPI::performRollout(Eigen::MatrixXd* states, Eigen::MatrixXd* actions, Eig
   {
     // Local optimization of the action
     Eigen::VectorXd action;
-    action = planner.planNextAction(*problem, state, *policy, *value, engine);
+    if (agent_selector)
+      action = multi_planner.planNextAction(*problem, *agent_selector, state, *policy, *value, engine);
+    else
+      action = planner.planNextAction(*problem, state, *policy, *value, engine);
     // Applying action, storing results and updating current state
     Problem::Result res = problem->getSuccessor(state, action, engine);
     rollout_states.push_back(problem->getLearningState(state));
@@ -347,7 +351,20 @@ Json::Value LPPI::toJson() const
 void LPPI::fromJson(const Json::Value& v, const std::string& dir_name)
 {
   BlackBoxLearner::fromJson(v, dir_name);
-  planner.read(v, "planner", dir_name);
+  // as
+  AgentSelectorFactory().tryRead(v, "agent_selector", dir_name, &agent_selector);
+  std::cout << "before planner " << std::endl;
+
+  if (agent_selector)
+  {
+    multi_planner.read(v, "planner", dir_name);
+    std::cout << "as" << std::endl;
+  }
+  else
+  {
+    planner.read(v, "planner", dir_name);
+  }
+  std::cout << "after planner " << std::endl;
   TrainerFactory().tryRead(v, "value_trainer", dir_name, &value_trainer);
   TrainerFactory().tryRead(v, "policy_trainer", dir_name, &policy_trainer);
   FunctionApproximatorFactory().tryRead(v, "value", dir_name, &value);
@@ -363,7 +380,11 @@ void LPPI::fromJson(const Json::Value& v, const std::string& dir_name)
   {
     throw std::logic_error("Invalid value for recall_ration: " + std::to_string(recall_ratio));
   }
-  planner.prepareOptimizer(*problem);
+  if (agent_selector)
+    multi_planner.prepareOptimizer(*problem, *agent_selector);
+  else
+    planner.prepareOptimizer(*problem);
+
   // Update value_trainer and policy_trainer number of threads
   setNbThreads(nb_threads);
 }
