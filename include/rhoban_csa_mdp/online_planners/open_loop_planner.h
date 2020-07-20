@@ -43,7 +43,7 @@ public:
   virtual Json::Value toJson() const override;
   virtual void fromJson(const Json::Value& v, const std::string& dir_name) override;
 
-private:
+protected:
   /// When the open-loop planner reaches look-ahead without encountering a terminal state, EvaluationPolicy defines how
   /// the expected reward is computed
   enum EvaluationPolicy
