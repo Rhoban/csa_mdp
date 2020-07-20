@@ -8,6 +8,8 @@ std::map<std::string, AgentSelectorFactory::JsonBuilder> AgentSelectorFactory::e
 
 AgentSelectorFactory::AgentSelectorFactory()
 {
+  registerBuilder("OneDimensionAgentSelector", []() { return std::unique_ptr<AgentSelector>(new AgentSelector); });
+
   // This factory does not contain default problems
   for (const auto& entry : extra_builders)
   {
