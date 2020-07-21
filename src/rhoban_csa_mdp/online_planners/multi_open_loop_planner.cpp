@@ -100,62 +100,66 @@ Eigen::VectorXd MultiOpenLoopPlanner::planNextAction(const Problem& p, const Age
                                                      const rhoban_fa::FunctionApproximator& value_function,
                                                      std::default_random_engine* engine) const
 {
-  // Building reward function
-  rhoban_bbo::Optimizer::RewardFunc reward_function = [&p, &as, &policy, &value_function, this,
-                                                       state](const Eigen::VectorXd& next_actions, int main_agent,
-                                                              std::default_random_engine* engine) {
-    double total_reward = 0;
-    for (int rollout = 0; rollout < this->rollouts_per_sample; rollout++)
-    {
-      bool trial_terminated = false;
-      Eigen::VectorXd final_state;
-      double rollout_reward = this->sampleLookAheadReward(p, as, policy, main_agent, state, next_actions, &final_state,
-                                                          &trial_terminated, engine);
-      // If rollout has not ended with a terminal status, use policy to end
-      // the trial
-      if (!trial_terminated)
-      {
-        double disc = pow(this->discount, look_ahead);
-        double future_reward;
-        switch (evaluation_policy)
-        {
-          case PolicyBased:
-            future_reward =
-                p.sampleRolloutReward(final_state, policy, trial_length - look_ahead, this->discount, engine);
-            break;
-          case ValueBased:
-            future_reward = value_function.predict(p.getLearningState(final_state), 0);  // ok
-            break;
-          default:
-            throw std::logic_error("Invalid enum");
-        }
-        rollout_reward += disc * future_reward;
-      }
-      total_reward += rollout_reward;
-    }
-    double avg_reward = total_reward / rollouts_per_sample;
-    return avg_reward;
-  };
   // Optimizing next actions
-  Eigen::VectorXd next_actions;
-  for (int i = 0; i < as.getNbAgents(); i++)
+  int nb_action = as.getActionsLimits().size();
+  int action_dim = nb_action / as.getNbActions();
+  Eigen::VectorXd next_actions(nb_action);
+
+  for (int main_agent = 0; main_agent < as.getNbAgents(); main_agent++)
   {
+    // Building reward function
+    rhoban_bbo::Optimizer::RewardFunc reward_function = [&p, &as, main_agent, &policy, &value_function, this,
+                                                         state](const Eigen::VectorXd& next_actions,
+                                                                std::default_random_engine* engine) {
+      double total_reward = 0;
+      for (int rollout = 0; rollout < this->rollouts_per_sample; rollout++)
+      {
+        bool trial_terminated = false;
+        Eigen::VectorXd final_state;
+        double rollout_reward = this->sampleLookAheadReward(p, as, policy, main_agent, state, next_actions,
+                                                            &final_state, &trial_terminated, engine);
+        // If rollout has not ended with a terminal status, use policy to end
+        // the trial
+        if (!trial_terminated)
+        {
+          double disc = pow(this->discount, look_ahead);
+          double future_reward;
+          switch (evaluation_policy)
+          {
+            case PolicyBased:
+              future_reward =
+                  p.sampleRolloutReward(final_state, policy, trial_length - look_ahead, this->discount, engine);
+              break;
+            case ValueBased:
+              future_reward = value_function.predict(p.getLearningState(final_state), 0);  // ok
+              break;
+            default:
+              throw std::logic_error("Invalid enum");
+          }
+          rollout_reward += disc * future_reward;
+        }
+        total_reward += rollout_reward;
+      }
+      double avg_reward = total_reward / rollouts_per_sample;
+      return avg_reward;
+    };
+
     if (guess_initial_candidate)  // for each candidate
     {
-      Eigen::VectorXd initial_guess = getInitialGuess(p, as, i, state, policy, engine);
-      next_actions = optimizer->train(reward_function, initial_guess, engine, main_agent);
+      Eigen::VectorXd initial_guess = getInitialGuess(p, as, main_agent, state, policy, engine);
+      next_actions.segment(main_agent * action_dim, action_dim) =
+          optimizer->train(reward_function, initial_guess, engine);
     }
     else
     {
-      next_actions = optimizer->train(reward_function, engine, main_agent);
+      next_actions.segment(main_agent * action_dim, action_dim) = optimizer->train(reward_function, engine);
     }
   }
 
   // Only return next action, with a prefix
-  int action_dims = p.actionDims(0);
-  Eigen::VectorXd prefixed_action(1 + action_dims);
+  Eigen::VectorXd prefixed_action(1 + nb_action);
   prefixed_action(0) = 0;
-  prefixed_action.segment(1, action_dims) = next_actions.segment(0, action_dims);
+  prefixed_action.segment(1, nb_action) = next_actions.segment(0, nb_action);
   return prefixed_action;
 }  // namespace csa_mdp
 

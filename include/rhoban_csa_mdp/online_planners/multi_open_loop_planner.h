@@ -1,5 +1,6 @@
 #pragma once
 #include "rhoban_csa_mdp/online_planners/open_loop_planner.h"
+#include "rhoban_csa_mdp/core/agent_selector.h"
 
 namespace csa_mdp
 {
