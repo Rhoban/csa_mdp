@@ -42,7 +42,9 @@ public:
 
   const Eigen::VectorXd mergeActions(std::vector<Eigen::VectorXd> actions) const;
 
-  void fromJson(const Json::Value& v, const std::string& dir_name);
+  virtual void fromJson(const Json::Value& v, const std::string& dir_name) override;
+  virtual std::string getClassName() const override;
+  virtual Json::Value toJson() const override;
 
 protected:
   std::shared_ptr<const Problem> pb;

@@ -31,18 +31,7 @@ double AgentSelector::getDist(Eigen::VectorXd agent_1, Eigen::VectorXd agent_2) 
   }
   else
   {
-    if (agent_1.size() == 1)
-    {
-      // one dimension agent
-      return fabs(agent_1(0) - agent_2(0));
-    }
-    else
-    {
-      // two dimensions
-      double dx = agent_1(0) - agent_2(0);
-      double dy = agent_1(1) - agent_2(1);
-      return sqrt(dx * dx + dy * dy);
-    }
+    return (agent_1 - agent_2).norm();
   }
 }
 
@@ -130,7 +119,6 @@ const Eigen::VectorXd AgentSelector::mergeActions(std::vector<Eigen::VectorXd> a
   Eigen::VectorXd merged_actions(nb_actions * actions.front().size() + 1);
   merged_actions << 0;
 
-  // for (std::vector<Eigen::VectorXd>::iterator it = actions.begin(); it != actions.end(); ++it)
   for (int i = 0; i < actions.size(); i++)
   {
     Eigen::VectorXd a = actions.at(i);
@@ -141,11 +129,11 @@ const Eigen::VectorXd AgentSelector::mergeActions(std::vector<Eigen::VectorXd> a
 
 Eigen::MatrixXd AgentSelector::removeMainAgent(Eigen::MatrixXd agents, int main_agent) const
 {
-  unsigned int numRows = agents.rows() - 1;
-  unsigned int numCols = agents.cols();
-  agents.block(main_agent, 0, numRows - main_agent, numCols) =
-      agents.block(main_agent + 1, 0, numRows - main_agent, numCols);
-  agents.conservativeResize(numRows, numCols);
+  unsigned int num_rows = agents.rows() - 1;
+  unsigned int num_cols = agents.cols();
+  agents.block(main_agent, 0, num_rows - main_agent, num_cols) =
+      agents.block(main_agent + 1, 0, num_rows - main_agent, num_cols);
+  agents.conservativeResize(num_rows, num_cols);
   return agents;
 }
 
@@ -153,5 +141,15 @@ void AgentSelector::fromJson(const Json::Value& v, const std::string& dir_name)
 {
   pb = ProblemFactory().read(v, "model", dir_name);
   rhoban_utils::tryRead(v, "nb_selected_agents", &nb_selected_agents);
+}
+
+Json::Value AgentSelector::toJson() const
+{
+  throw std::runtime_error("AgentSelector::toJson: Not implemented");
+}
+
+std::string AgentSelector::getClassName() const
+{
+  return "AgentSelector";
 }
 }  // namespace csa_mdp
