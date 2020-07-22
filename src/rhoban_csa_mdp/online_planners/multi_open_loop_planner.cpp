@@ -78,9 +78,9 @@ double MultiOpenLoopPlanner::sampleLookAheadReward(const Problem& p, const Agent
       if (i != main_agent)
       {
         Eigen::VectorXd tmp = policy.getAction(as.getRelevantState(initial_state, i), engine);
-        std::cout << "tmp" << tmp.size() << std::endl;  // 4
 
-        action.segment(1 + i * action_dim, action_dim) = tmp;
+        // first element of tmp is 0
+        action.segment(1 + i * action_dim, action_dim) = tmp.segment(1, tmp.size() - 1);
       }
       else
       {
@@ -110,7 +110,7 @@ Eigen::VectorXd MultiOpenLoopPlanner::planNextAction(const Problem& p, const Age
                                                      std::default_random_engine* engine) const
 {
   // Optimizing next actions
-  int nb_action = as.getNbActions();
+  int nb_action = p.actionDims(0);
   int action_dim = nb_action / as.getNbAgents();
   Eigen::VectorXd next_actions(nb_action + 1);
 
@@ -161,7 +161,8 @@ Eigen::VectorXd MultiOpenLoopPlanner::planNextAction(const Problem& p, const Age
     }
     else
     {
-      next_actions.segment(main_agent * action_dim, action_dim) = optimizer->train(reward_function, engine);
+      Eigen::VectorXd tmp = optimizer->train(reward_function, engine);
+      next_actions.segment(main_agent * action_dim, action_dim) = tmp.segment(1, tmp.size() - 1);
     }
   }
 

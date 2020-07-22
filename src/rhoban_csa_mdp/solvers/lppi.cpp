@@ -191,7 +191,10 @@ void LPPI::init(std::default_random_engine* engine)
   if (!policy)
   {
     policy = std::unique_ptr<Policy>(new RandomPolicy);
-    policy->setActionLimits(problem->getActionsLimits());
+    if (agent_selector)
+      policy->setActionLimits(agent_selector->getActionsLimits());
+    else
+      policy->setActionLimits(problem->getActionsLimits());
   }
   if (!value)
   {
