@@ -1,8 +1,11 @@
 #include "rhoban_csa_mdp/online_planners/multi_open_loop_planner.h"
+#include "rhoban_bbo/optimizer_factory.h"
 
+#include <iostream>
 namespace csa_mdp
 {
 MultiOpenLoopPlanner::MultiOpenLoopPlanner()
+  : look_ahead(0), rollouts_per_sample(1), discount(1), evaluation_policy(EvaluationPolicy::ValueBased)
 {
 }
 MultiOpenLoopPlanner::~MultiOpenLoopPlanner()
@@ -21,16 +24,18 @@ void MultiOpenLoopPlanner::checkConsistency(const AgentSelector& as) const
                              std::to_string(look_ahead) + "'");
   }
 }
-void MultiOpenLoopPlanner::prepareOptimizer(const Problem& pb, const AgentSelector& as)
+void MultiOpenLoopPlanner::prepareOptimizer(const AgentSelector& as)
 {
   //  checkConsistency(p);
   Eigen::MatrixXd action_limits = as.getActionsLimits().front();
   int action_dims = action_limits.rows();
+
   Eigen::MatrixXd optimizer_limits(action_dims * look_ahead, 2);
   for (int action = 0; action < look_ahead; action++)
   {
     optimizer_limits.block(action * action_dims, 0, action_dims, 2) = action_limits;
   }
+
   optimizer->setLimits(optimizer_limits);
 }
 
@@ -59,23 +64,27 @@ double MultiOpenLoopPlanner::sampleLookAheadReward(const Problem& p, const Agent
                                                    bool* is_terminated, std::default_random_engine* engine) const
 {
   // to do add action from policy for other robots
-  int nb_action = as.getActionsLimits().size();
-  int action_dim = nb_action / as.getNbActions();
-
+  int nb_agents = as.getNbAgents();
+  int action_dim = p.actionDims(0) / nb_agents;
   double gain = 1.0;
   double rollout_reward = 0;
   Eigen::VectorXd curr_state = initial_state;
   for (int step = 0; step < look_ahead; step++)
   {
-    Eigen::VectorXd action(nb_action + 1);
+    Eigen::VectorXd action(p.actionDims(0) + 1);
     action(0) = 0;
-    action.segment(1 + main_agent * action_dim, action_dim) = next_actions.segment(action_dim * step, action_dim);
-    for (int i = 0; i < as.getNbActions(); i++)
+    for (int i = 0; i < nb_agents; i++)
     {
       if (i != main_agent)
       {
-        action.segment(1 + i * action_dim, action_dim) =
-            policy.getAction(as.getRelevantState(initial_state, i), engine);
+        Eigen::VectorXd tmp = policy.getAction(as.getRelevantState(initial_state, i), engine);
+        std::cout << "tmp" << tmp.size() << std::endl;  // 4
+
+        action.segment(1 + i * action_dim, action_dim) = tmp;
+      }
+      else
+      {
+        action.segment(1 + main_agent * action_dim, action_dim) = next_actions.segment(action_dim * step, action_dim);
       }
     }
 
@@ -101,9 +110,9 @@ Eigen::VectorXd MultiOpenLoopPlanner::planNextAction(const Problem& p, const Age
                                                      std::default_random_engine* engine) const
 {
   // Optimizing next actions
-  int nb_action = as.getActionsLimits().size();
-  int action_dim = nb_action / as.getNbActions();
-  Eigen::VectorXd next_actions(nb_action);
+  int nb_action = as.getNbActions();
+  int action_dim = nb_action / as.getNbAgents();
+  Eigen::VectorXd next_actions(nb_action + 1);
 
   for (int main_agent = 0; main_agent < as.getNbAgents(); main_agent++)
   {
@@ -162,6 +171,20 @@ Eigen::VectorXd MultiOpenLoopPlanner::planNextAction(const Problem& p, const Age
   prefixed_action.segment(1, nb_action) = next_actions.segment(0, nb_action);
   return prefixed_action;
 }  // namespace csa_mdp
+
+void MultiOpenLoopPlanner::fromJson(const Json::Value& v, const std::string& dir_name)
+{
+  rhoban_bbo::OptimizerFactory().tryRead(v, "optimizer", dir_name, &optimizer);
+  rhoban_utils::tryRead(v, "look_ahead", &look_ahead);
+  rhoban_utils::tryRead(v, "trial_length", &trial_length);
+  rhoban_utils::tryRead(v, "rollouts_per_sample", &rollouts_per_sample);
+  rhoban_utils::tryRead(v, "discount", &discount);
+  rhoban_utils::tryRead(v, "guess_initial_candidate", &guess_initial_candidate);
+  std::string evaluation_policy_str;
+  rhoban_utils::tryRead(v, "evaluation_policy", &evaluation_policy_str);
+  if (evaluation_policy_str != "")
+    evaluation_policy = evaluationPolicyFromString(evaluation_policy_str);
+}
 
 std::string MultiOpenLoopPlanner::getClassName() const
 {

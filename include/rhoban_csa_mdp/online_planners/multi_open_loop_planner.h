@@ -13,7 +13,7 @@ public:
   void checkConsistency(const AgentSelector& as) const;
 
   /// Configure the optimizer for the given problem
-  void prepareOptimizer(const Problem& p, const AgentSelector& as);
+  void prepareOptimizer(const AgentSelector& as);
 
   /// Uses the provided policy to obtain an initial guess for the 'look_ahead' coming actions
   Eigen::VectorXd getInitialGuess(const Problem& p, const AgentSelector& as, const int main_agent,
@@ -36,7 +36,29 @@ public:
   Eigen::VectorXd planNextAction(const Problem& p, const AgentSelector& as, const Eigen::VectorXd& state,
                                  const Policy& policy, const rhoban_fa::FunctionApproximator& value_function,
                                  std::default_random_engine* engine) const;
+  virtual void fromJson(const Json::Value& v, const std::string& dir_name) override;
 
   virtual std::string getClassName() const override;
+
+private:
+  /// Optimizer used for open loop planning
+  std::unique_ptr<rhoban_bbo::Optimizer> optimizer;
+
+  /// Number of steps of look ahead
+  int look_ahead;
+
+  /// Number of steps for a trial when using a default policy after step
+  int trial_length;
+
+  /// Number of rollouts used to average the reward at each sample
+  int rollouts_per_sample;
+
+  /// Discount value used for optimization
+  double discount;
+
+  /// Is policy used to guess initial candidate
+  bool guess_initial_candidate;
+
+  EvaluationPolicy evaluation_policy;
 };
 }  // namespace csa_mdp

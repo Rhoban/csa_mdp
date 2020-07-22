@@ -381,7 +381,7 @@ void LPPI::fromJson(const Json::Value& v, const std::string& dir_name)
     throw std::logic_error("Invalid value for recall_ration: " + std::to_string(recall_ratio));
   }
   if (agent_selector)
-    multi_planner.prepareOptimizer(*problem, *agent_selector);
+    multi_planner.prepareOptimizer(*agent_selector);
   else
     planner.prepareOptimizer(*problem);
 
