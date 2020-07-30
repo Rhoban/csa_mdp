@@ -5,7 +5,11 @@
 namespace csa_mdp
 {
 OpenLoopPlanner::OpenLoopPlanner()
-  : look_ahead(0), rollouts_per_sample(1), discount(1), evaluation_policy(EvaluationPolicy::ValueBased)
+  : look_ahead(0)
+  , rollouts_per_sample(1)
+  , discount(1)
+  , guess_initial_candidate(false)
+  , evaluation_policy(EvaluationPolicy::ValueBased)
 {
 }
 

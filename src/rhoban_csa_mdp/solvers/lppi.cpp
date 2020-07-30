@@ -62,14 +62,11 @@ void LPPI::performRollout(Eigen::MatrixXd* states, Eigen::MatrixXd* actions, Eig
     rollout_actions.push_back(action);
     rollout_rewards.push_back(res.reward);
     // Stop if we obtained a terminal status, otherwise, update current state
+    state = res.successor;
     if (res.terminal)
     {
       end_with_terminal = true;
       break;
-    }
-    else
-    {
-      state = res.successor;
     }
   }
   // Now, fill states, actions and values by going back
