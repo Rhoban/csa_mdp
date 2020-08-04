@@ -50,7 +50,14 @@ Eigen::VectorXd MultiOpenLoopPlanner::getInitialGuess(const Problem& p, const Ag
   Eigen::VectorXd state = initial_state;
   for (int step = 0; step < look_ahead; step++)
   {
-    Eigen::VectorXd action = policy.getAction(as.getRelevantState(state, main_agent), engine);
+    Eigen::VectorXd action(1 + action_dims * as.getNbAgents());
+    action(0) = 0;
+    for (int i = 0; i < as.getNbAgents(); i++)
+    {
+      action.segment(1 + i, action_dims) =
+          policy.getAction(as.getRelevantState(state, main_agent), engine).segment(1, action_dims);
+    }
+
     Problem::Result result = p.getSuccessor(state, action, engine);
     state = result.successor;
     initial_guess.segment(step * action_dims, action_dims) = action.segment(1, action_dims);
@@ -157,7 +164,7 @@ Eigen::VectorXd MultiOpenLoopPlanner::planNextAction(const Problem& p, const Age
     {
       Eigen::VectorXd initial_guess = getInitialGuess(p, as, main_agent, state, policy, engine);
       next_actions.segment(main_agent * action_dim, action_dim) =
-          optimizer->train(reward_function, initial_guess, engine);
+          optimizer->train(reward_function, initial_guess, engine).segment(0, action_dim);
     }
     else
     {
