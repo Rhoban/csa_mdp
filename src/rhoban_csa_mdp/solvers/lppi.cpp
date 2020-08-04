@@ -43,6 +43,9 @@ void LPPI::performRollout(Eigen::MatrixXd* states, Eigen::MatrixXd* actions, Eig
 {
   int state_dims = problem->getLearningDimensions().size();
   int action_dims = problem->actionDims(0);
+  if (agent_selector)
+    action_dims = action_dims / agent_selector->getNbAgents();
+
   // First, run the rollout storing visited states
   std::vector<Eigen::VectorXd> rollout_states, rollout_actions;
   std::vector<double> rollout_rewards;
@@ -53,14 +56,32 @@ void LPPI::performRollout(Eigen::MatrixXd* states, Eigen::MatrixXd* actions, Eig
     // Local optimization of the action
     Eigen::VectorXd action;
     if (agent_selector)
+    {
       action = multi_planner.planNextAction(*problem, *agent_selector, state, *policy, *value, engine);
+    }
     else
       action = planner.planNextAction(*problem, state, *policy, *value, engine);
     // Applying action, storing results and updating current state
     Problem::Result res = problem->getSuccessor(state, action, engine);
-    rollout_states.push_back(problem->getLearningState(state));
-    rollout_actions.push_back(action);
-    rollout_rewards.push_back(res.reward);
+    if (agent_selector)
+    {
+      for (int i = 0; i < agent_selector->getNbAgents(); i++)
+      {
+        rollout_states.push_back(agent_selector->getRelevantState(state, i));
+        Eigen::VectorXd tmp_action = Eigen::VectorXd::Zero(action_dims + 1);
+        tmp_action.segment(1, action_dims) = action.row(1 + i);
+        rollout_actions.push_back(tmp_action);
+        rollout_rewards.push_back(res.reward);
+      }
+    }
+
+    else
+    {
+      rollout_states.push_back(problem->getLearningState(state));
+      rollout_actions.push_back(action);
+      rollout_rewards.push_back(res.reward);
+    }
+
     // Stop if we obtained a terminal status, otherwise, update current state
     state = res.successor;
     if (res.terminal)
@@ -84,7 +105,9 @@ void LPPI::performRollout(Eigen::MatrixXd* states, Eigen::MatrixXd* actions, Eig
     }
   }
   // Initalize and fill results
+
   int rollout_entries = last_idx_used + 1;
+
   (*states) = Eigen::MatrixXd(state_dims, rollout_entries);
   (*actions) = Eigen::MatrixXd(1 + action_dims, rollout_entries);
   (*values) = Eigen::VectorXd(rollout_entries);
@@ -226,7 +249,6 @@ void LPPI::update(std::default_random_engine* engine)
   TimeStamp mid1 = TimeStamp::now();
   writeTime("performRollouts", diffSec(start, mid1));
   // Updating both policy and value based on actions
-  Eigen::MatrixXd state_limits = problem->getStateLimits();
   if (verbosity > 0)
     std::cout << "Training value" << std::endl;
   updateValues(states, values);
@@ -311,7 +333,12 @@ void LPPI::updateMemory(const Eigen::MatrixXd& states, const Eigen::MatrixXd& ac
 std::unique_ptr<FunctionApproximator> LPPI::updatePolicy(const Eigen::MatrixXd& states,
                                                          const Eigen::MatrixXd& actions) const
 {
-  Eigen::MatrixXd state_limits = problem->getLearningStateLimits();
+  Eigen::MatrixXd state_limits;
+
+  if (agent_selector)
+    state_limits = agent_selector->getStateLimits();
+  else
+    state_limits = problem->getLearningStateLimits();
   std::unique_ptr<FunctionApproximator> new_policy_fa;
   if (policy_fa)
   {
@@ -353,18 +380,15 @@ void LPPI::fromJson(const Json::Value& v, const std::string& dir_name)
   BlackBoxLearner::fromJson(v, dir_name);
   // as
   AgentSelectorFactory().tryRead(v, "agent_selector", dir_name, &agent_selector);
-  std::cout << "before planner " << std::endl;
 
   if (agent_selector)
   {
     multi_planner.read(v, "planner", dir_name);
-    std::cout << "as" << std::endl;
   }
   else
   {
     planner.read(v, "planner", dir_name);
   }
-  std::cout << "after planner " << std::endl;
   TrainerFactory().tryRead(v, "value_trainer", dir_name, &value_trainer);
   TrainerFactory().tryRead(v, "policy_trainer", dir_name, &policy_trainer);
   FunctionApproximatorFactory().tryRead(v, "value", dir_name, &value);
