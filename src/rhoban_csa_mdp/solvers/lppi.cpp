@@ -44,7 +44,10 @@ void LPPI::performRollout(Eigen::MatrixXd* states, Eigen::MatrixXd* actions, Eig
   int state_dims = problem->getLearningDimensions().size();
   int action_dims = problem->actionDims(0);
   if (agent_selector)
+  {
     action_dims = action_dims / agent_selector->getNbAgents();
+    state_dims = state_dims - agent_selector->getNbAgents() + agent_selector->getNbSelectedAgents() + 1;
+  }
 
   // First, run the rollout storing visited states
   std::vector<Eigen::VectorXd> rollout_states, rollout_actions;
@@ -132,6 +135,12 @@ void LPPI::performRollouts(Eigen::MatrixXd* states, Eigen::MatrixXd* actions, Ei
 {
   int state_dims = problem->getLearningDimensions().size();
   int action_dims = problem->actionDims(0);
+  if (agent_selector)
+  {
+    action_dims = action_dims / agent_selector->getNbAgents();
+    state_dims = state_dims - agent_selector->getNbAgents() + agent_selector->getNbSelectedAgents() + 1;
+  }
+
   int entry_count = 0;
   (*states) = Eigen::MatrixXd(state_dims, nb_entries);
   (*actions) = Eigen::MatrixXd(1 + action_dims, nb_entries);
@@ -144,6 +153,7 @@ void LPPI::performRollouts(Eigen::MatrixXd* states, Eigen::MatrixXd* actions, Ei
     values->segment(0, recall_values.rows()) = recall_values;
     entry_count += recall_states.cols();
   }
+
   std::mutex mutex;  // Ensures only one thread modifies common properties at the same time
   // TODO: add another StochasticTask which does not depend on start_idx and end_idx eventually
   rhoban_utils::MultiCore::StochasticTask thread_task = [this, &mutex, &state_dims, &action_dims, states, actions,
@@ -164,6 +174,7 @@ void LPPI::performRollouts(Eigen::MatrixXd* states, Eigen::MatrixXd* actions, Ei
         mutex.unlock();
         return;
       }
+
       // If there is too much new entries, remove some to have exactly the
       // requested number
       if (entry_count + nb_new_entries > this->nb_entries)
@@ -264,7 +275,10 @@ void LPPI::update(std::default_random_engine* engine)
   std::unique_ptr<Policy> new_policy = buildPolicy(*new_policy_fa);
   if (verbosity > 0)
     std::cout << "Evaluating policy" << std::endl;
-  last_score = evaluatePolicy(*new_policy, engine);
+  if (agent_selector)
+    last_score = evaluateMultiPolicy(100, engine);
+  else
+    last_score = evaluatePolicy(*new_policy, engine);
   TimeStamp end = TimeStamp::now();
   writeTime("evalPolicy", diffSec(mid3, end));
   if (verbosity > 0)
@@ -272,6 +286,9 @@ void LPPI::update(std::default_random_engine* engine)
   if (last_score > best_reward)
   {
     policy = std::move(new_policy);
+    if (agent_selector)
+      policy->setActionLimits(agent_selector->getActionsLimits());
+
     policy_fa = std::move(new_policy_fa);
     value->save("value.bin");
     policy_fa->save("policy_fa.bin");
@@ -299,7 +316,12 @@ void LPPI::update(std::default_random_engine* engine)
 
 void LPPI::updateValues(const Eigen::MatrixXd& states, const Eigen::VectorXd& values)
 {
-  Eigen::MatrixXd state_limits = problem->getLearningStateLimits();
+  Eigen::MatrixXd state_limits;
+
+  if (agent_selector)
+    state_limits = agent_selector->getStateLimits();
+  else
+    state_limits = problem->getLearningStateLimits();
   if (value)
   {
     value = value_trainer->train(states, values, state_limits, *value);
@@ -339,6 +361,7 @@ std::unique_ptr<FunctionApproximator> LPPI::updatePolicy(const Eigen::MatrixXd& 
     state_limits = agent_selector->getStateLimits();
   else
     state_limits = problem->getLearningStateLimits();
+
   std::unique_ptr<FunctionApproximator> new_policy_fa;
   if (policy_fa)
   {
@@ -350,6 +373,47 @@ std::unique_ptr<FunctionApproximator> LPPI::updatePolicy(const Eigen::MatrixXd& 
   }
   return new_policy_fa;
 }
+
+double LPPI::evaluateMultiPolicy(int nb_evaluations, std::default_random_engine* engine) const
+{
+  // Preparing random_engines
+  std::vector<std::default_random_engine> engines;
+  engines = rhoban_random::getRandomEngines(std::min(nb_threads, nb_evaluations), engine);
+  // Rewards + visited_states are computed by different threads and stored in the same vector
+  Eigen::VectorXd rewards = Eigen::VectorXd::Zero(nb_evaluations);
+  int action_dims = agent_selector->getActionsLimits().size();
+
+  // The task which has to be performed :
+  rhoban_utils::MultiCore::StochasticTask task = [this, &rewards, &action_dims](int start_idx, int end_idx,
+                                                                                std::default_random_engine* engine) {
+    for (int idx = start_idx; idx < end_idx; idx++)
+    {
+      Eigen::VectorXd state = problem->getStartingState(engine);
+      double gain = 1.0;
+      for (int step = 0; step < trial_length; step++)
+      {
+        Eigen::VectorXd action(1 + action_dims * agent_selector->getNbAgents());
+        action(0) = 0;
+        for (int i = 0; i < agent_selector->getNbAgents(); i++)
+        {
+          action.segment(1 + i, action_dims) =
+              policy->getAction(agent_selector->getRelevantState(state, i), engine).segment(1, action_dims);
+        }
+        Problem::Result result = problem->getSuccessor(state, action, engine);
+        double step_reward = result.reward;
+        state = result.successor;
+        rewards(idx) += gain * step_reward;
+        gain = gain * discount;
+        if (result.terminal)
+          break;
+      }
+    }
+  };
+  // Running computation
+  rhoban_utils::MultiCore::runParallelStochasticTask(task, nb_evaluations, &engines);
+  // Result
+  return rewards.mean();
+}  // namespace csa_mdp
 
 void LPPI::setNbThreads(int nb_threads)
 {

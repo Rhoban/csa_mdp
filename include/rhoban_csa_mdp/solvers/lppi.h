@@ -46,6 +46,7 @@ public:
 
   void updateMemory(const Eigen::MatrixXd& states, const Eigen::MatrixXd& actions, const Eigen::VectorXd& values,
                     std::default_random_engine* engine);
+  double evaluateMultiPolicy(int nb_evaluations, std::default_random_engine* engine) const;
 
   virtual void setNbThreads(int nb_threads) override;
 
