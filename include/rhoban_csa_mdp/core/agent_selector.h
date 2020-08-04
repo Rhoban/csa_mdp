@@ -17,6 +17,7 @@ public:
   ~AgentSelector();
 
   int getNbAgents() const;
+  int getNbSelectedAgents() const;
 
   /// global method to calculate distance between 2 agents
   virtual double getDist(Eigen::VectorXd agent_1, Eigen::VectorXd agent_2) const;

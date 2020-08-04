@@ -21,6 +21,11 @@ int AgentSelector::getNbAgents() const
   return this->pb->getNbAgents();
 }
 
+int AgentSelector::getNbSelectedAgents() const
+{
+  return nb_selected_agents;
+}
+
 double AgentSelector::getDist(Eigen::VectorXd agent_1, Eigen::VectorXd agent_2) const
 {
   if (agent_1.size() != agent_2.size())
@@ -62,6 +67,7 @@ Eigen::VectorXd AgentSelector::getRelevantState(const Eigen::VectorXd& state, in
   std::pair<Eigen::VectorXd, Eigen::MatrixXd> split_state = this->pb->splitMultiAgentState(state);
   // get relevant agents
   Eigen::VectorXd relevant_agents = getRevelantAgents(split_state.first, split_state.second, main_agent);
+
   // merge world and relevant agent
   Eigen::VectorXd relevant_state(split_state.first.size() + nb_selected_agents + 1);
   relevant_state << split_state.first, relevant_agents;
