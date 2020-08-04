@@ -71,7 +71,7 @@ Eigen::VectorXd AgentSelector::getRelevantState(const Eigen::VectorXd& state, in
 const Eigen::MatrixXd AgentSelector::getStateLimits() const
 {
   // get limits of world and n agents
-  int nb_dimensions = this->pb->getNbStaticElements();
+  int nb_dimensions = this->pb->getNbStaticElements() + 1;
   nb_dimensions += nb_selected_agents;
 
   Eigen::MatrixXd relevant_state_limits(nb_dimensions, 2);
@@ -80,6 +80,7 @@ const Eigen::MatrixXd AgentSelector::getStateLimits() const
   {
     relevant_state_limits.row(i) = state_limits.row(i);
   }
+
   return relevant_state_limits;
 }
 

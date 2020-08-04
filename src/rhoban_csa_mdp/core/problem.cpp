@@ -7,7 +7,7 @@
 
 namespace csa_mdp
 {
-Problem::Problem()
+Problem::Problem() : nb_agents(3), nb_static_element(1), agent_size(0.2)
 {
 }
 
