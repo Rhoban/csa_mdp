@@ -5,7 +5,11 @@
 namespace csa_mdp
 {
 MultiOpenLoopPlanner::MultiOpenLoopPlanner()
-  : look_ahead(0), rollouts_per_sample(1), discount(1), evaluation_policy(EvaluationPolicy::ValueBased)
+  : look_ahead(0)
+  , rollouts_per_sample(1)
+  , discount(1)
+  , guess_initial_candidate(false)
+  , evaluation_policy(EvaluationPolicy::ValueBased)
 {
 }
 MultiOpenLoopPlanner::~MultiOpenLoopPlanner()
@@ -26,7 +30,6 @@ void MultiOpenLoopPlanner::checkConsistency(const AgentSelector& as) const
 }
 void MultiOpenLoopPlanner::prepareOptimizer(const AgentSelector& as)
 {
-  //  checkConsistency(p);
   Eigen::MatrixXd action_limits = as.getActionsLimits().front();
   int action_dims = action_limits.rows();
 

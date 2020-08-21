@@ -77,14 +77,12 @@ void LPPI::performRollout(Eigen::MatrixXd* states, Eigen::MatrixXd* actions, Eig
         rollout_rewards.push_back(res.reward);
       }
     }
-
     else
     {
       rollout_states.push_back(problem->getLearningState(state));
       rollout_actions.push_back(action);
       rollout_rewards.push_back(res.reward);
     }
-
     // Stop if we obtained a terminal status, otherwise, update current state
     state = res.successor;
     if (res.terminal)
@@ -278,7 +276,7 @@ void LPPI::update(std::default_random_engine* engine)
   if (verbosity > 0)
     std::cout << "Evaluating policy" << std::endl;
   if (agent_selector)
-    last_score = evaluateMultiPolicy(100, engine);
+    last_score = evaluateMultiPolicy(100000, engine);
   else
     last_score = evaluatePolicy(*new_policy, engine);
   TimeStamp end = TimeStamp::now();
@@ -290,7 +288,6 @@ void LPPI::update(std::default_random_engine* engine)
     policy = std::move(new_policy);
     if (agent_selector)
       policy->setActionLimits(agent_selector->getActionsLimits());
-
     policy_fa = std::move(new_policy_fa);
     value->save("value.bin");
     policy_fa->save("policy_fa.bin");
@@ -311,7 +308,6 @@ void LPPI::update(std::default_random_engine* engine)
       increase_last_iteration = false;
     }
   }
-
   publishIteration();
   updateMemory(states, actions, values, engine);
 }
@@ -319,7 +315,6 @@ void LPPI::update(std::default_random_engine* engine)
 void LPPI::updateValues(const Eigen::MatrixXd& states, const Eigen::VectorXd& values)
 {
   Eigen::MatrixXd state_limits;
-
   if (agent_selector)
     state_limits = agent_selector->getStateLimits();
   else
@@ -358,12 +353,10 @@ std::unique_ptr<FunctionApproximator> LPPI::updatePolicy(const Eigen::MatrixXd& 
                                                          const Eigen::MatrixXd& actions) const
 {
   Eigen::MatrixXd state_limits;
-
   if (agent_selector)
     state_limits = agent_selector->getStateLimits();
   else
     state_limits = problem->getLearningStateLimits();
-
   std::unique_ptr<FunctionApproximator> new_policy_fa;
   if (policy_fa)
   {
