@@ -172,7 +172,7 @@ Eigen::VectorXd MultiOpenLoopPlanner::planNextAction(const Problem& p, const Age
     else
     {
       Eigen::VectorXd tmp = optimizer->train(reward_function, engine);
-      next_actions.segment(main_agent * action_dim, action_dim) = tmp.segment(1, tmp.size() - 1);
+      next_actions.segment(main_agent * action_dim, action_dim) = tmp.segment(0, action_dim);
     }
   }
 

@@ -165,7 +165,7 @@ void LPPI::performRollouts(Eigen::MatrixXd* states, Eigen::MatrixXd* actions, Ei
       Eigen::VectorXd rollout_values;
       this->performRollout(&rollout_states, &rollout_actions, &rollout_values, engine);
       int nb_rollouts = rollout_states.cols();
-      int nb_new_entries = nb_rollouts / agent_selector->getNbAgents();
+      int nb_new_entries = nb_rollouts;
 
       // Updating content
       mutex.lock();
@@ -180,14 +180,15 @@ void LPPI::performRollouts(Eigen::MatrixXd* states, Eigen::MatrixXd* actions, Ei
       if (entry_count + nb_new_entries > this->nb_entries)
       {
         nb_new_entries = this->nb_entries - entry_count;
-        rollout_states = rollout_states.block(0, 0, state_dims, nb_new_entries * agent_selector->getNbAgents());
-        rollout_actions = rollout_actions.block(0, 0, 1 + action_dims, nb_new_entries * agent_selector->getNbAgents());
-        rollout_values = rollout_values.segment(0, nb_new_entries * agent_selector->getNbAgents());
+        rollout_states = rollout_states.block(0, 0, state_dims, nb_new_entries);
+        rollout_actions = rollout_actions.block(0, 0, 1 + action_dims, nb_new_entries);
+        rollout_values = rollout_values.segment(0, nb_new_entries);
       }
-      states->block(0, entry_count, state_dims, nb_rollouts) = rollout_states;
-      actions->block(0, entry_count, 1 + action_dims, nb_rollouts) = rollout_actions;
-      values->segment(entry_count, nb_rollouts) = rollout_values;
+      states->block(0, entry_count, state_dims, nb_new_entries) = rollout_states;
+      actions->block(0, entry_count, 1 + action_dims, nb_new_entries) = rollout_actions;
+      values->segment(entry_count, nb_new_entries) = rollout_values;
       entry_count += nb_new_entries;
+
       if (verbosity > 0)
         std::cout << "Entry count: " << entry_count << std::endl;
       mutex.unlock();
