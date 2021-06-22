@@ -1,35 +1,17 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.16.3)
 project(rhoban_csa_mdp)
 
-find_package(catkin REQUIRED COMPONENTS
-  rhoban_fa
-)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -std=c++17")
-
-catkin_package(
-  INCLUDE_DIRS include
-  LIBRARIES rhoban_csa_mdp
-  CATKIN_DEPENDS rhoban_fa
-)
 
 ## Gaussian Processes support
 # Currently, uses of GP in CSA_MDP is directly linked with the use of GP in
 # regression forests. It would be possible to separate those uses if necessary
 # in the future.
-if ("${catkin_LIBRARIES}" MATCHES "rhoban_gp")
-  add_definitions(-DRHOBAN_RF_USES_GP)
-endif()
-
-
-###########
-## Build ##
-###########
-
-include_directories(
-  include
-  ${catkin_INCLUDE_DIRS}
-  )
+#if ("${catkin_LIBRARIES}" MATCHES "rhoban_gp")
+#  add_definitions(-DRHOBAN_RF_USES_GP)
+#endif()
+# ↑↑↑↑↑↑↑ NOW PROPAGATE AUTOMATICALY BY CMAKE
 
 # Directories containing sources files
 set(DIRECTORIES
@@ -59,10 +41,20 @@ foreach (DIRECTORY ${DIRECTORIES})
 endforeach (DIRECTORY)
 
 # Declare a C++ library
-add_library(rhoban_csa_mdp
-  ${ALL_SOURCES}
-  )
+add_library(rhoban_csa_mdp ${ALL_SOURCES})
+target_link_libraries(rhoban_csa_mdp PUBLIC rhoban_fa)
+target_include_directories(rhoban_csa_mdp PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+)
 
-target_link_libraries(rhoban_csa_mdp
-  ${catkin_LIBRARIES}
-  )
+# optional
+if(TARGET rhoban_gp)
+  target_link_libraries(rhoban_csa_mdp PUBLIC rhoban_gp)
+endif()
+
+# optional 
+if(TARGET rhoban_viewer)
+  target_link_libraries(rhoban_csa_mdp PUBLIC rhoban_viewer)
+endif()
+
+

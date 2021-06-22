@@ -199,8 +199,7 @@ double KnownnessTree::getValue(const Eigen::MatrixXd& space, int local_points) c
         }
       }
       return std::min(1.0, (double)local_points / conf.max_points * getMu() / max_size);
-    case Type::Random:
-    {
+    case Type::Random: {
       double local_size = 1.0;
       double global_size = 1.0;
       for (int dim = 0; dim < space.rows(); dim++)
@@ -236,7 +235,7 @@ regression_forests::Node* KnownnessTree::convertToRegNode(const kd_trees::KdNode
     return new_node;
   }
   // Node case
-  double split_dim = node->getSplitDim();
+  int split_dim = node->getSplitDim();
   double split_val = node->getSplitVal();
   double old_min = space(split_dim, 0);
   double old_max = space(split_dim, 1);
